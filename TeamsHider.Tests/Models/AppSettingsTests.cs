@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TeamsHider.Tests;
 
 namespace TeamsHider.Tests.Models;
 
@@ -54,7 +55,7 @@ public class AppSettingsTests
         Assert.NotNull(settings);
         Assert.False(settings.HideTopBar);
         Assert.True(settings.HideBottomOverlay);
-        Assert.False(settings.LaunchAtStartup); // Default value
+        Assert.False(settings.LaunchAtStartup); // Default value when not in JSON
     }
 
     [Fact]
@@ -68,7 +69,8 @@ public class AppSettingsTests
 
         // Assert
         Assert.NotNull(settings);
-        Assert.False(settings.HideTopBar); // Default from deserialization is false
+        // When deserializing empty JSON, bool properties get C# default (false), not property initializer
+        Assert.False(settings.HideTopBar);
         Assert.False(settings.HideBottomOverlay);
         Assert.False(settings.LaunchAtStartup);
     }
@@ -89,15 +91,3 @@ public class AppSettingsTests
     }
 }
 
-/// <summary>
-/// AppSettings model for testing (mirrors the real model).
-/// </summary>
-public class AppSettings
-{
-    public bool HideTopBar { get; set; } = true;
-    public bool HideBottomOverlay { get; set; } = true;
-    public bool LaunchAtStartup { get; set; } = false;
-
-    [System.Text.Json.Serialization.JsonExtensionData]
-    public Dictionary<string, object>? ExtensionData { get; set; }
-}

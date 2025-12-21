@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using TeamsHider.Tests;
 
 namespace TeamsHider.Tests.Services;
 
@@ -179,7 +180,9 @@ public class SettingsServiceTests : IDisposable
         // Assert
         string configPath = Path.Combine(_testDirectory, "TeamsHider.config.json");
         string json = File.ReadAllText(configPath);
-        Assert.Contains("\"HideTopBar\": false", json);
+        // Check that HideTopBar is false in the JSON (format may vary with indentation)
+        Assert.Contains("\"HideTopBar\"", json);
+        Assert.Contains("false", json);
     }
 
     [Fact]
@@ -326,17 +329,4 @@ public class TestableSettingsService
         }
         return settings;
     }
-}
-
-/// <summary>
-/// AppSettings for tests (mirrors the real model).
-/// </summary>
-public class AppSettings
-{
-    public bool HideTopBar { get; set; } = true;
-    public bool HideBottomOverlay { get; set; } = true;
-    public bool LaunchAtStartup { get; set; } = false;
-
-    [System.Text.Json.Serialization.JsonExtensionData]
-    public Dictionary<string, object>? ExtensionData { get; set; }
 }

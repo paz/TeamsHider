@@ -52,13 +52,14 @@ public class TrayManager : IDisposable
         DebugLog.Log("TrayManager", "Building context menu...");
         var menu = new MenuFlyout();
 
-        // Toggle: Hide Top Bar (uses WinUI 3 ToggleMenuFlyoutItem with native checkbox)
+        // Toggle: Hide Top Bar
+        // H.NotifyIcon creates Win32 PopupMenus that call Commands, not Click events
         _topBarToggle = new ToggleMenuFlyoutItem
         {
             Text = "Hide Top Bar",
-            IsChecked = _settingsService.CurrentSettings.HideTopBar
+            IsChecked = _settingsService.CurrentSettings.HideTopBar,
+            Command = new RelayCommand(OnToggleTopBar)
         };
-        _topBarToggle.Click += OnToggleTopBar;
         menu.Items.Add(_topBarToggle);
         DebugLog.Log("TrayManager", $"Added Hide Top Bar toggle (checked={_topBarToggle.IsChecked})");
 
@@ -66,29 +67,38 @@ public class TrayManager : IDisposable
         _bottomOverlayToggle = new ToggleMenuFlyoutItem
         {
             Text = "Hide Bottom Overlay",
-            IsChecked = _settingsService.CurrentSettings.HideBottomOverlay
+            IsChecked = _settingsService.CurrentSettings.HideBottomOverlay,
+            Command = new RelayCommand(OnToggleBottomOverlay)
         };
-        _bottomOverlayToggle.Click += OnToggleBottomOverlay;
         menu.Items.Add(_bottomOverlayToggle);
         DebugLog.Log("TrayManager", $"Added Hide Bottom Overlay toggle (checked={_bottomOverlayToggle.IsChecked})");
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
         // Settings
-        var settingsItem = new MenuFlyoutItem { Text = "Settings" };
-        settingsItem.Click += OnSettingsClicked;
+        var settingsItem = new MenuFlyoutItem
+        {
+            Text = "Settings",
+            Command = new RelayCommand(OnSettingsClicked)
+        };
         menu.Items.Add(settingsItem);
 
         // About
-        var aboutItem = new MenuFlyoutItem { Text = "About TeamsHider" };
-        aboutItem.Click += OnAboutClicked;
+        var aboutItem = new MenuFlyoutItem
+        {
+            Text = "About TeamsHider",
+            Command = new RelayCommand(OnAboutClicked)
+        };
         menu.Items.Add(aboutItem);
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
         // Exit
-        var exitItem = new MenuFlyoutItem { Text = "Exit" };
-        exitItem.Click += OnExitClicked;
+        var exitItem = new MenuFlyoutItem
+        {
+            Text = "Exit",
+            Command = new RelayCommand(OnExitClicked)
+        };
         menu.Items.Add(exitItem);
 
         DebugLog.Log("TrayManager", $"Menu built with {menu.Items.Count} items");
@@ -150,9 +160,9 @@ public class TrayManager : IDisposable
         }
     }
 
-    private void OnToggleTopBar(object sender, RoutedEventArgs e)
+    private void OnToggleTopBar()
     {
-        DebugLog.Log("TrayManager", "OnToggleTopBar clicked!");
+        DebugLog.Log("TrayManager", "OnToggleTopBar command executed!");
         try
         {
             if (_topBarToggle == null)
@@ -160,10 +170,12 @@ public class TrayManager : IDisposable
                 DebugLog.Log("TrayManager", "ERROR: _topBarToggle is null");
                 return;
             }
-            DebugLog.Log("TrayManager", $"New IsChecked value: {_topBarToggle.IsChecked}");
-            _settingsService.CurrentSettings.HideTopBar = _topBarToggle.IsChecked;
+            // Toggle the state (H.NotifyIcon Win32 menu doesn't auto-toggle)
+            bool newValue = !_settingsService.CurrentSettings.HideTopBar;
+            _topBarToggle.IsChecked = newValue;
+            _settingsService.CurrentSettings.HideTopBar = newValue;
             _settingsService.SaveSettings();
-            DebugLog.Log("TrayManager", "Settings saved");
+            DebugLog.Log("TrayManager", $"HideTopBar toggled to: {newValue}");
         }
         catch (Exception ex)
         {
@@ -171,9 +183,9 @@ public class TrayManager : IDisposable
         }
     }
 
-    private void OnToggleBottomOverlay(object sender, RoutedEventArgs e)
+    private void OnToggleBottomOverlay()
     {
-        DebugLog.Log("TrayManager", "OnToggleBottomOverlay clicked!");
+        DebugLog.Log("TrayManager", "OnToggleBottomOverlay command executed!");
         try
         {
             if (_bottomOverlayToggle == null)
@@ -181,10 +193,12 @@ public class TrayManager : IDisposable
                 DebugLog.Log("TrayManager", "ERROR: _bottomOverlayToggle is null");
                 return;
             }
-            DebugLog.Log("TrayManager", $"New IsChecked value: {_bottomOverlayToggle.IsChecked}");
-            _settingsService.CurrentSettings.HideBottomOverlay = _bottomOverlayToggle.IsChecked;
+            // Toggle the state (H.NotifyIcon Win32 menu doesn't auto-toggle)
+            bool newValue = !_settingsService.CurrentSettings.HideBottomOverlay;
+            _bottomOverlayToggle.IsChecked = newValue;
+            _settingsService.CurrentSettings.HideBottomOverlay = newValue;
             _settingsService.SaveSettings();
-            DebugLog.Log("TrayManager", "Settings saved");
+            DebugLog.Log("TrayManager", $"HideBottomOverlay toggled to: {newValue}");
         }
         catch (Exception ex)
         {
@@ -192,9 +206,9 @@ public class TrayManager : IDisposable
         }
     }
 
-    private void OnSettingsClicked(object sender, RoutedEventArgs e)
+    private void OnSettingsClicked()
     {
-        DebugLog.Log("TrayManager", "OnSettingsClicked!");
+        DebugLog.Log("TrayManager", "OnSettingsClicked command executed!");
         try
         {
             _showSettingsAction();
@@ -205,9 +219,9 @@ public class TrayManager : IDisposable
         }
     }
 
-    private void OnAboutClicked(object sender, RoutedEventArgs e)
+    private void OnAboutClicked()
     {
-        DebugLog.Log("TrayManager", "OnAboutClicked!");
+        DebugLog.Log("TrayManager", "OnAboutClicked command executed!");
         try
         {
             Process.Start(new ProcessStartInfo
@@ -223,9 +237,9 @@ public class TrayManager : IDisposable
         }
     }
 
-    private void OnExitClicked(object sender, RoutedEventArgs e)
+    private void OnExitClicked()
     {
-        DebugLog.Log("TrayManager", "OnExitClicked!");
+        DebugLog.Log("TrayManager", "OnExitClicked command executed!");
         try
         {
             _quitAction();

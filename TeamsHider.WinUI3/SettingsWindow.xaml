@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="TeamsHider.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="TeamsHider Settings">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0"
+                   Text="TeamsHider Settings"
+                   Style="{StaticResource TitleTextBlockStyle}"
+                   Margin="0,0,0,8"/>
+
+        <!-- Hide Top Bar Toggle -->
+        <ToggleSwitch Grid.Row="1"
+                      x:Name="HideTopBarToggle"
+                      Header="Hide top bar during screen sharing"
+                      OnContent="Enabled"
+                      OffContent="Disabled"
+                      Toggled="OnHideTopBarToggled"/>
+
+        <!-- Hide Bottom Overlay Toggle -->
+        <ToggleSwitch Grid.Row="2"
+                      x:Name="HideBottomOverlayToggle"
+                      Header="Hide minimized call overlay"
+                      OnContent="Enabled"
+                      OffContent="Disabled"
+                      Toggled="OnHideBottomOverlayToggled"/>
+
+        <!-- Launch at Startup Toggle -->
+        <ToggleSwitch Grid.Row="3"
+                      x:Name="LaunchAtStartupToggle"
+                      Header="Launch at Windows startup"
+                      OnContent="Enabled"
+                      OffContent="Disabled"
+                      Toggled="OnLaunchAtStartupToggled"/>
+
+        <!-- Spacer -->
+        <Grid Grid.Row="4"/>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="5"
+                    Orientation="Horizontal"
+                    Spacing="16">
+            <HyperlinkButton Content="GitHub Repository"
+                             NavigateUri="https://github.com/mroter93/TeamsHider"/>
+            <TextBlock Text="Version 5.0.0"
+                       VerticalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+    </Grid>
+</Window>

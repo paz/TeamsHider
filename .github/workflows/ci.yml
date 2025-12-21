@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, 'claude/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.x
+
+    - name: Restore test dependencies
+      run: dotnet restore TeamsHider.Tests/TeamsHider.Tests.csproj
+
+    - name: Run tests with coverage
+      run: |
+        dotnet test TeamsHider.Tests/TeamsHider.Tests.csproj \
+          --configuration Release \
+          --logger "trx;LogFileName=test-results.trx" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory ./TestResults
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: TestResults/
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-report
+        path: TestResults/**/coverage.cobertura.xml
+
+  build-legacy:
+    name: Build Legacy (WinForms)
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.x
+
+    - name: Build Legacy Version
+      run: |
+        dotnet publish TeamsHider/TeamsHider.csproj \
+          --configuration Release \
+          --self-contained true \
+          -r win-x64 \
+          -o ./publish-legacy
+
+    - name: Upload Legacy Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: TeamsHider-Legacy
+        path: ./publish-legacy/
+
+  build-winui3:
+    name: Build WinUI 3
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.x
+
+    - name: Build WinUI 3 Version
+      run: |
+        dotnet publish TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
+          --configuration Release `
+          --self-contained true `
+          -r win-x64 `
+          -o ./publish-winui3
+
+    - name: Upload WinUI 3 Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: TeamsHider-WinUI3
+        path: ./publish-winui3/

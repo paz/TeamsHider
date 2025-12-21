@@ -1,5 +1,4 @@
 using Microsoft.UI.Xaml;
-using System.Diagnostics;
 using TeamsHider.Services;
 
 namespace TeamsHider;
@@ -10,7 +9,8 @@ namespace TeamsHider;
 /// </summary>
 public partial class App : Application
 {
-    private static readonly string AppId = Process.GetCurrentProcess().ProcessName;
+    // Use a GUID-based mutex name to avoid collisions with other applications
+    private const string MutexId = "Global\\TeamsHider-{7B3A4F2E-1C9D-4E5F-8A6B-0D2C3E4F5A6B}";
     private static Mutex? _mutex;
 
     private SettingsService? _settingsService;
@@ -25,8 +25,8 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Single instance enforcement
-        _mutex = new Mutex(false, AppId);
+        // Single instance enforcement using GUID-based mutex
+        _mutex = new Mutex(false, MutexId);
         if (!_mutex.WaitOne(0, false))
         {
             // Another instance is running - exit silently

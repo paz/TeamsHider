@@ -122,12 +122,16 @@ public class WindowMonitorService
         {
             try
             {
-                (string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd) firstItem = group.FirstOrDefault();
+                // Materialize group once to avoid multiple enumerations
+                List<(string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd)> items = group.ToList();
+                if (items.Count == 0) continue;
+
+                (string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd) firstItem = items[0];
 
                 // Bottom overlay: Hide if title is "Meeting compact view"
                 if (firstItem.title == BottomOverlayText && settings.HideBottomOverlay)
                 {
-                    (string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd) overlayItem = group.FirstOrDefault(x =>
+                    (string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd) overlayItem = items.FirstOrDefault(x =>
                         x.affinity is WindowHelper.DisplayAffinity.Monitor
                             or WindowHelper.DisplayAffinity.ExcludeFromCapture);
 
@@ -139,7 +143,7 @@ public class WindowMonitorService
                 }
 
                 // Top bar: Hide if multiple windows with same name and overlay affinity
-                if (settings.HideTopBar && group.Count() > 1 &&
+                if (settings.HideTopBar && items.Count > 1 &&
                     firstItem.affinity is WindowHelper.DisplayAffinity.Monitor
                         or WindowHelper.DisplayAffinity.ExcludeFromCapture)
                 {

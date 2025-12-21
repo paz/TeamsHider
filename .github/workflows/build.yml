@@ -1,42 +1,77 @@
-name: Build .NET APP
+name: Build and Release
 
 on:
   push:
-    tags: 
-    - '*'
-  
+    tags:
+    - 'v*'
 
 jobs:
-  build:
-
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.x
 
-    - name: Build
-      run: dotnet publish --configuration Release --self-contained true -r win-x64 -o ./publish
-
-
-    - name: Install zip
-      uses: montudor/action-zip@v1
-
-    - name: Zip output
+    - name: Run tests
       run: |
-         cd ./publish
-         zip -qq -r Release.zip .
-      
+        dotnet test TeamsHider.Tests/TeamsHider.Tests.csproj \
+          --configuration Release \
+          --logger "trx;LogFileName=test-results.trx"
 
-    - name: GH Release
+  build-and-release:
+    name: Build and Release
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.x
+
+    - name: Build Legacy Version (WinForms)
+      run: |
+        dotnet publish TeamsHider/TeamsHider.csproj `
+          --configuration Release `
+          --self-contained true `
+          -r win-x64 `
+          -o ./publish-legacy
+
+    - name: Build WinUI 3 Version
+      run: |
+        dotnet publish TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
+          --configuration Release `
+          --self-contained true `
+          -r win-x64 `
+          -o ./publish-winui3
+
+    - name: Create Legacy ZIP
+      run: Compress-Archive -Path ./publish-legacy/* -DestinationPath ./Release-Legacy.zip
+
+    - name: Create WinUI 3 ZIP
+      run: Compress-Archive -Path ./publish-winui3/* -DestinationPath ./Release-WinUI3.zip
+
+    - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "./publish/Release.zip"
-            
+        artifacts: "Release-Legacy.zip,Release-WinUI3.zip"
+        body: |
+          ## TeamsHider Release
 
-                  
-            
+          ### Downloads
+          - **Release-WinUI3.zip** - Modern WinUI 3 version with built-in settings UI (Recommended)
+          - **Release-Legacy.zip** - Legacy Windows Forms version
+
+          ### What's New
+          See CHANGELOG in README.md for details.
+        generateReleaseNotes: true

@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using TeamsHider.Models;
 
 namespace TeamsHider.Services;
@@ -17,6 +19,11 @@ public class SettingsService
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
+
+    // Regex to match unquoted property names (only at start of line or after { or ,)
+    private static readonly Regex UnquotedPropertyRegex = new(
+        @"(?<=^|[{,]\s*)(\w+)(?=\s*:)",
+        RegexOptions.Compiled | RegexOptions.Multiline);
 
     /// <summary>
     /// Current in-memory settings. Updated when settings change.
@@ -62,9 +69,14 @@ public class SettingsService
             string json = JsonSerializer.Serialize(CurrentSettings, JsonOptions);
             File.WriteAllText(modernPath, json);
         }
-        catch
+        catch (IOException ex)
         {
-            // Silently fail - settings will apply in memory only
+            // Settings will apply in memory only
+            Debug.WriteLine($"Failed to save settings: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Debug.WriteLine($"No permission to save settings: {ex.Message}");
         }
     }
 
@@ -75,8 +87,14 @@ public class SettingsService
             string json = File.ReadAllText(path);
             return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
         }
-        catch
+        catch (JsonException ex)
         {
+            Debug.WriteLine($"Failed to parse config file: {ex.Message}");
+            return new AppSettings();
+        }
+        catch (IOException ex)
+        {
+            Debug.WriteLine($"Failed to read config file: {ex.Message}");
             return new AppSettings();
         }
     }
@@ -89,11 +107,11 @@ public class SettingsService
             // Legacy format: { HideTopBar: true, HideBottomOverlay: true }
             string legacyJson = File.ReadAllText(legacyPath);
 
-            // Legacy format may have unquoted property names - normalize it
-            legacyJson = legacyJson.Replace("HideTopBar:", "\"HideTopBar\":");
-            legacyJson = legacyJson.Replace("HideBottomOverlay:", "\"HideBottomOverlay\":");
+            // Use regex to safely quote unquoted property names
+            // This only matches property names at valid JSON positions (after { or ,)
+            string normalizedJson = UnquotedPropertyRegex.Replace(legacyJson, "\"$1\"");
 
-            using JsonDocument doc = JsonDocument.Parse(legacyJson);
+            using JsonDocument doc = JsonDocument.Parse(normalizedJson);
             JsonElement root = doc.RootElement;
 
             AppSettings settings = new()
@@ -117,8 +135,19 @@ public class SettingsService
 
             return settings;
         }
-        catch
+        catch (JsonException ex)
         {
+            Debug.WriteLine($"Failed to parse legacy config: {ex.Message}");
+            return new AppSettings();
+        }
+        catch (IOException ex)
+        {
+            Debug.WriteLine($"Failed to read/write config file: {ex.Message}");
+            return new AppSettings();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Unexpected error during config migration: {ex.Message}");
             return new AppSettings();
         }
     }

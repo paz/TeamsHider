@@ -47,7 +47,7 @@ namespace TeamsHider
                     }, IntPtr.Zero);
 
                     toHide = toHide.SelectMany(x =>
-                                x.title.Split("|").FirstOrDefault()
+                                (x.title.Split("|").FirstOrDefault() ?? string.Empty)
                                     .Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim())
                                     .ToList(),
                             (x, y) => (y, x.affinity, x.hwnd))

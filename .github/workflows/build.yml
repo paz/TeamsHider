@@ -17,7 +17,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
     - name: Run tests
       run: |
@@ -37,9 +37,9 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
-    # global.json ensures we use .NET 8 SDK, not preview SDKs that may be pre-installed
+    # global.json ensures consistent .NET 10 SDK version across builds
     - name: Verify .NET SDK version
       run: dotnet --version
 
@@ -99,17 +99,17 @@ jobs:
           | File | Size | Requirements |
           |------|------|--------------|
           | **TeamsHider-WinUI3-SelfContained.zip** | ~80MB | None (includes .NET runtime) |
-          | **TeamsHider-WinUI3-Portable.zip** | ~5MB | [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+          | **TeamsHider-WinUI3-Portable.zip** | ~5MB | [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
 
           #### Legacy (Windows Forms)
           | File | Size | Requirements |
           |------|------|--------------|
           | **TeamsHider-Legacy-SelfContained.zip** | ~60MB | None (includes .NET runtime) |
-          | **TeamsHider-Legacy-Portable.zip** | ~1MB | [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+          | **TeamsHider-Legacy-Portable.zip** | ~1MB | [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
 
           ### Which version should I download?
           - **First time user?** Download `TeamsHider-WinUI3-SelfContained.zip` - works out of the box
-          - **Have .NET 8 installed?** Download `TeamsHider-WinUI3-Portable.zip` - smaller download
+          - **Have .NET 10 installed?** Download `TeamsHider-WinUI3-Portable.zip` - smaller download
           - **Need legacy version?** Use the Legacy variants
 
           ### What's New

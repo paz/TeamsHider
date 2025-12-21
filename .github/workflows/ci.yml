@@ -18,7 +18,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
     - name: Restore test dependencies
       run: dotnet restore TeamsHider.Tests/TeamsHider.Tests.csproj
@@ -57,7 +57,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
     - name: Build Legacy Version
       run: |
@@ -85,9 +85,9 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
-    # global.json ensures we use .NET 8 SDK, not preview SDKs that may be pre-installed
+    # global.json ensures consistent .NET 10 SDK version across builds
     - name: Verify .NET SDK version
       run: dotnet --version
 

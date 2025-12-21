@@ -25,30 +25,62 @@ public class TrayManager : IDisposable
         _showSettingsAction = showSettingsAction;
         _quitAction = quitAction;
 
-        _trayIcon = new TaskbarIcon();
+        // Get TaskbarIcon from application resources (defined in App.xaml)
+        _trayIcon = (TaskbarIcon)Application.Current.Resources["TrayIcon"];
         InitializeTrayIcon();
     }
 
     private void InitializeTrayIcon()
     {
-        // Set icon from file
+        // Try to load icon from file, then embedded resource
+        System.Drawing.Icon? icon = null;
+
+        // Try Assets folder first
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "invisible.ico");
         if (File.Exists(iconPath))
         {
-            _trayIcon.Icon = new System.Drawing.Icon(iconPath);
+            icon = new System.Drawing.Icon(iconPath);
+        }
+        else
+        {
+            // Try same directory as exe
+            string altPath = Path.Combine(AppContext.BaseDirectory, "invisible.ico");
+            if (File.Exists(altPath))
+            {
+                icon = new System.Drawing.Icon(altPath);
+            }
+            else
+            {
+                // Try embedded resource (for single-file publish)
+                var assembly = typeof(TrayManager).Assembly;
+                using var stream = assembly.GetManifestResourceStream("TeamsHider.invisible.ico");
+                if (stream != null)
+                {
+                    icon = new System.Drawing.Icon(stream);
+                }
+            }
         }
 
-        _trayIcon.ToolTipText = "TeamsHider - Running";
+        if (icon != null)
+        {
+            _trayIcon.Icon = icon;
+        }
 
-        // Create context menu
-        MenuFlyout menu = new();
+        // Build the context menu
+        var menu = _trayIcon.ContextFlyout as MenuFlyout;
+        if (menu == null)
+        {
+            menu = new MenuFlyout();
+            _trayIcon.ContextFlyout = menu;
+        }
+        menu.Items.Clear();
 
         // Quick toggle: Hide Top Bar
         _topBarItem = new MenuFlyoutItem
         {
             Text = _settingsService.CurrentSettings.HideTopBar
-                ? "Hide Top Bar (On)"
-                : "Hide Top Bar (Off)"
+                ? "✓ Hide Top Bar"
+                : "  Hide Top Bar"
         };
         _topBarItem.Click += OnToggleTopBar;
         menu.Items.Add(_topBarItem);
@@ -57,8 +89,8 @@ public class TrayManager : IDisposable
         _bottomOverlayItem = new MenuFlyoutItem
         {
             Text = _settingsService.CurrentSettings.HideBottomOverlay
-                ? "Hide Bottom Overlay (On)"
-                : "Hide Bottom Overlay (Off)"
+                ? "✓ Hide Bottom Overlay"
+                : "  Hide Bottom Overlay"
         };
         _bottomOverlayItem.Click += OnToggleBottomOverlay;
         menu.Items.Add(_bottomOverlayItem);
@@ -82,7 +114,8 @@ public class TrayManager : IDisposable
         quitItem.Click += (s, e) => _quitAction();
         menu.Items.Add(quitItem);
 
-        _trayIcon.ContextFlyout = menu;
+        // Force the tray icon to show
+        _trayIcon.ForceCreate();
     }
 
     private void OnToggleTopBar(object sender, RoutedEventArgs e)
@@ -108,15 +141,15 @@ public class TrayManager : IDisposable
         if (_topBarItem != null)
         {
             _topBarItem.Text = _settingsService.CurrentSettings.HideTopBar
-                ? "Hide Top Bar (On)"
-                : "Hide Top Bar (Off)";
+                ? "✓ Hide Top Bar"
+                : "  Hide Top Bar";
         }
 
         if (_bottomOverlayItem != null)
         {
             _bottomOverlayItem.Text = _settingsService.CurrentSettings.HideBottomOverlay
-                ? "Hide Bottom Overlay (On)"
-                : "Hide Bottom Overlay (Off)";
+                ? "✓ Hide Bottom Overlay"
+                : "  Hide Bottom Overlay";
         }
     }
 

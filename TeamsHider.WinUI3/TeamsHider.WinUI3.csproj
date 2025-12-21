@@ -31,6 +31,10 @@
     <Content Include="Assets\invisible.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- Also embed icon as resource for single-file scenarios -->
+    <EmbeddedResource Include="Assets\invisible.ico">
+      <LogicalName>TeamsHider.invisible.ico</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!--

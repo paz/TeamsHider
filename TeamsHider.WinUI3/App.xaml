@@ -2,12 +2,20 @@
 <Application
     x:Class="TeamsHider.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tb="using:H.NotifyIcon">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- System tray icon defined in XAML for proper WinUI 3 integration -->
+            <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="TeamsHider - Running">
+                <tb:TaskbarIcon.ContextFlyout>
+                    <MenuFlyout x:Name="TrayMenu" />
+                </tb:TaskbarIcon.ContextFlyout>
+            </tb:TaskbarIcon>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

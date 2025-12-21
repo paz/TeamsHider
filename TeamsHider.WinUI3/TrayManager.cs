@@ -16,8 +16,8 @@ public class TrayManager : IDisposable
     private readonly SettingsService _settingsService;
     private readonly Action _showSettingsAction;
     private readonly Action _quitAction;
-    private MenuFlyoutItem? _topBarItem;
-    private MenuFlyoutItem? _bottomOverlayItem;
+    private ToggleMenuFlyoutItem? _topBarToggle;
+    private ToggleMenuFlyoutItem? _bottomOverlayToggle;
 
     public TrayManager(SettingsService settingsService, Action showSettingsAction, Action quitAction)
     {
@@ -32,7 +32,57 @@ public class TrayManager : IDisposable
 
     private void InitializeTrayIcon()
     {
-        // Try to load icon from file, then embedded resource
+        // Load icon
+        LoadIcon();
+
+        // Build the context menu with WinUI 3 controls
+        var menu = new MenuFlyout();
+
+        // Toggle: Hide Top Bar (uses WinUI 3 ToggleMenuFlyoutItem with native checkbox)
+        _topBarToggle = new ToggleMenuFlyoutItem
+        {
+            Text = "Hide Top Bar",
+            IsChecked = _settingsService.CurrentSettings.HideTopBar
+        };
+        _topBarToggle.Click += OnToggleTopBar;
+        menu.Items.Add(_topBarToggle);
+
+        // Toggle: Hide Bottom Overlay
+        _bottomOverlayToggle = new ToggleMenuFlyoutItem
+        {
+            Text = "Hide Bottom Overlay",
+            IsChecked = _settingsService.CurrentSettings.HideBottomOverlay
+        };
+        _bottomOverlayToggle.Click += OnToggleBottomOverlay;
+        menu.Items.Add(_bottomOverlayToggle);
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        // Settings
+        var settingsItem = new MenuFlyoutItem { Text = "Settings" };
+        settingsItem.Click += OnSettingsClicked;
+        menu.Items.Add(settingsItem);
+
+        // About
+        var aboutItem = new MenuFlyoutItem { Text = "About TeamsHider" };
+        aboutItem.Click += OnAboutClicked;
+        menu.Items.Add(aboutItem);
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        // Exit
+        var exitItem = new MenuFlyoutItem { Text = "Exit" };
+        exitItem.Click += OnExitClicked;
+        menu.Items.Add(exitItem);
+
+        _trayIcon.ContextFlyout = menu;
+
+        // Force the tray icon to show
+        _trayIcon.ForceCreate();
+    }
+
+    private void LoadIcon()
+    {
         System.Drawing.Icon? icon = null;
 
         // Try Assets folder first
@@ -65,108 +115,62 @@ public class TrayManager : IDisposable
         {
             _trayIcon.Icon = icon;
         }
-
-        // Build the context menu
-        var menu = _trayIcon.ContextFlyout as MenuFlyout;
-        if (menu == null)
-        {
-            menu = new MenuFlyout();
-            _trayIcon.ContextFlyout = menu;
-        }
-        menu.Items.Clear();
-
-        // Quick toggle: Hide Top Bar
-        _topBarItem = new MenuFlyoutItem
-        {
-            Text = _settingsService.CurrentSettings.HideTopBar
-                ? "✓ Hide Top Bar"
-                : "  Hide Top Bar"
-        };
-        _topBarItem.Click += OnToggleTopBar;
-        menu.Items.Add(_topBarItem);
-
-        // Quick toggle: Hide Bottom Overlay
-        _bottomOverlayItem = new MenuFlyoutItem
-        {
-            Text = _settingsService.CurrentSettings.HideBottomOverlay
-                ? "✓ Hide Bottom Overlay"
-                : "  Hide Bottom Overlay"
-        };
-        _bottomOverlayItem.Click += OnToggleBottomOverlay;
-        menu.Items.Add(_bottomOverlayItem);
-
-        menu.Items.Add(new MenuFlyoutSeparator());
-
-        // Settings
-        MenuFlyoutItem settingsItem = new() { Text = "Settings..." };
-        settingsItem.Click += (s, e) => _showSettingsAction();
-        menu.Items.Add(settingsItem);
-
-        // About
-        MenuFlyoutItem aboutItem = new() { Text = "About" };
-        aboutItem.Click += OnAboutClicked;
-        menu.Items.Add(aboutItem);
-
-        menu.Items.Add(new MenuFlyoutSeparator());
-
-        // Quit
-        MenuFlyoutItem quitItem = new() { Text = "Quit" };
-        quitItem.Click += (s, e) => _quitAction();
-        menu.Items.Add(quitItem);
-
-        // Force the tray icon to show
-        _trayIcon.ForceCreate();
     }
 
     private void OnToggleTopBar(object sender, RoutedEventArgs e)
     {
-        _settingsService.CurrentSettings.HideTopBar = !_settingsService.CurrentSettings.HideTopBar;
+        if (_topBarToggle == null) return;
+        _settingsService.CurrentSettings.HideTopBar = _topBarToggle.IsChecked;
         _settingsService.SaveSettings();
-        UpdateMenuItems();
     }
 
     private void OnToggleBottomOverlay(object sender, RoutedEventArgs e)
     {
-        _settingsService.CurrentSettings.HideBottomOverlay = !_settingsService.CurrentSettings.HideBottomOverlay;
+        if (_bottomOverlayToggle == null) return;
+        _settingsService.CurrentSettings.HideBottomOverlay = _bottomOverlayToggle.IsChecked;
         _settingsService.SaveSettings();
-        UpdateMenuItems();
     }
 
-    /// <summary>
-    /// Updates menu item text to reflect current settings.
-    /// Called after settings change.
-    /// </summary>
-    public void UpdateMenuItems()
+    private void OnSettingsClicked(object sender, RoutedEventArgs e)
     {
-        if (_topBarItem != null)
-        {
-            _topBarItem.Text = _settingsService.CurrentSettings.HideTopBar
-                ? "✓ Hide Top Bar"
-                : "  Hide Top Bar";
-        }
-
-        if (_bottomOverlayItem != null)
-        {
-            _bottomOverlayItem.Text = _settingsService.CurrentSettings.HideBottomOverlay
-                ? "✓ Hide Bottom Overlay"
-                : "  Hide Bottom Overlay";
-        }
+        _showSettingsAction();
     }
 
     private void OnAboutClicked(object sender, RoutedEventArgs e)
     {
         try
         {
-            ProcessStartInfo psi = new()
+            Process.Start(new ProcessStartInfo
             {
-                FileName = "https://github.com/mroter93/TeamsHider",
+                FileName = "https://github.com/paz/TeamsHider",
                 UseShellExecute = true
-            };
-            Process.Start(psi);
+            });
         }
         catch
         {
             // Silently fail if browser cannot be opened
+        }
+    }
+
+    private void OnExitClicked(object sender, RoutedEventArgs e)
+    {
+        _quitAction();
+    }
+
+    /// <summary>
+    /// Updates toggle states to reflect current settings.
+    /// Called after settings change from Settings window.
+    /// </summary>
+    public void UpdateMenuItems()
+    {
+        if (_topBarToggle != null)
+        {
+            _topBarToggle.IsChecked = _settingsService.CurrentSettings.HideTopBar;
+        }
+
+        if (_bottomOverlayToggle != null)
+        {
+            _bottomOverlayToggle.IsChecked = _settingsService.CurrentSettings.HideBottomOverlay;
         }
     }
 

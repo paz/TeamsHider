@@ -10,12 +10,8 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- System tray icon defined in XAML for proper WinUI 3 integration -->
-            <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="TeamsHider - Running">
-                <tb:TaskbarIcon.ContextFlyout>
-                    <MenuFlyout x:Name="TrayMenu" />
-                </tb:TaskbarIcon.ContextFlyout>
-            </tb:TaskbarIcon>
+            <!-- System tray icon - menu is built in code for dynamic updates -->
+            <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="TeamsHider" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

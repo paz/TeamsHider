@@ -24,9 +24,17 @@
     </Content>
   </ItemGroup>
 
+  <!--
+    Dependency versioning strategy:
+    - WindowsAppSDK: Pin to stable 1.6.x for compatibility (1.6 has breaking changes from 1.5)
+    - SDK.BuildTools: Match the Windows SDK version in TargetFramework
+    - H.NotifyIcon: Allow minor updates within major version 2.x
+
+    Breaking changes in 1.6: https://learn.microsoft.com/en-us/windows/apps/windows-app-sdk/breaking-changes
+  -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240627000" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.1.3" />
   </ItemGroup>
 </Project>

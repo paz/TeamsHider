@@ -39,38 +39,74 @@ jobs:
       with:
         dotnet-version: 8.x
 
-    - name: Build Legacy Version (WinForms)
-      run: |
-        dotnet publish TeamsHider/TeamsHider.csproj `
-          --configuration Release `
-          --self-contained true `
-          -r win-x64 `
-          -o ./publish-legacy
-
-    - name: Build WinUI 3 Version
+    # WinUI 3 - Self-contained (includes .NET runtime, larger but no dependencies)
+    - name: Build WinUI 3 (Self-contained)
       run: |
         dotnet publish TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
           --configuration Release `
           --self-contained true `
           -r win-x64 `
-          -o ./publish-winui3
+          -o ./publish-winui3-selfcontained
 
-    - name: Create Legacy ZIP
-      run: Compress-Archive -Path ./publish-legacy/* -DestinationPath ./Release-Legacy.zip
+    # WinUI 3 - Framework-dependent (smaller, requires .NET 8 Desktop Runtime)
+    - name: Build WinUI 3 (Framework-dependent)
+      run: |
+        dotnet publish TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
+          --configuration Release `
+          --self-contained false `
+          -r win-x64 `
+          -o ./publish-winui3-portable
 
-    - name: Create WinUI 3 ZIP
-      run: Compress-Archive -Path ./publish-winui3/* -DestinationPath ./Release-WinUI3.zip
+    # Legacy - Self-contained
+    - name: Build Legacy (Self-contained)
+      run: |
+        dotnet publish TeamsHider/TeamsHider.csproj `
+          --configuration Release `
+          --self-contained true `
+          -r win-x64 `
+          -o ./publish-legacy-selfcontained
+
+    # Legacy - Framework-dependent
+    - name: Build Legacy (Framework-dependent)
+      run: |
+        dotnet publish TeamsHider/TeamsHider.csproj `
+          --configuration Release `
+          --self-contained false `
+          -r win-x64 `
+          -o ./publish-legacy-portable
+
+    - name: Create Release ZIPs
+      run: |
+        Compress-Archive -Path ./publish-winui3-selfcontained/* -DestinationPath ./TeamsHider-WinUI3-SelfContained.zip
+        Compress-Archive -Path ./publish-winui3-portable/* -DestinationPath ./TeamsHider-WinUI3-Portable.zip
+        Compress-Archive -Path ./publish-legacy-selfcontained/* -DestinationPath ./TeamsHider-Legacy-SelfContained.zip
+        Compress-Archive -Path ./publish-legacy-portable/* -DestinationPath ./TeamsHider-Legacy-Portable.zip
 
     - name: Create GitHub Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "Release-Legacy.zip,Release-WinUI3.zip"
+        artifacts: "TeamsHider-WinUI3-SelfContained.zip,TeamsHider-WinUI3-Portable.zip,TeamsHider-Legacy-SelfContained.zip,TeamsHider-Legacy-Portable.zip"
         body: |
           ## TeamsHider Release
 
           ### Downloads
-          - **Release-WinUI3.zip** - Modern WinUI 3 version with built-in settings UI (Recommended)
-          - **Release-Legacy.zip** - Legacy Windows Forms version
+
+          #### WinUI 3 (Recommended - Modern UI with built-in settings)
+          | File | Size | Requirements |
+          |------|------|--------------|
+          | **TeamsHider-WinUI3-SelfContained.zip** | ~80MB | None (includes .NET runtime) |
+          | **TeamsHider-WinUI3-Portable.zip** | ~5MB | [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+
+          #### Legacy (Windows Forms)
+          | File | Size | Requirements |
+          |------|------|--------------|
+          | **TeamsHider-Legacy-SelfContained.zip** | ~60MB | None (includes .NET runtime) |
+          | **TeamsHider-Legacy-Portable.zip** | ~1MB | [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+
+          ### Which version should I download?
+          - **First time user?** Download `TeamsHider-WinUI3-SelfContained.zip` - works out of the box
+          - **Have .NET 8 installed?** Download `TeamsHider-WinUI3-Portable.zip` - smaller download
+          - **Need legacy version?** Use the Legacy variants
 
           ### What's New
           See CHANGELOG in README.md for details.

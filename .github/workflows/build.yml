@@ -39,27 +39,47 @@ jobs:
       with:
         dotnet-version: 10.0.x
 
-    # global.json ensures consistent .NET 10 SDK version across builds
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    # Install Windows App SDK workload for MRT Core build tasks
+    - name: Install Windows App SDK build tools
+      run: |
+        $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+        & $vsInstaller modify `
+          --installPath "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" `
+          --add Microsoft.VisualStudio.Component.Windows11SDK.26100 `
+          --add Microsoft.VisualStudio.ComponentGroup.UWP.Support `
+          --quiet --norestart --wait
+      shell: pwsh
+
     - name: Verify .NET SDK version
       run: dotnet --version
+
+    - name: Restore WinUI 3 dependencies
+      run: dotnet restore TeamsHider.WinUI3/TeamsHider.WinUI3.csproj
 
     # WinUI 3 - Self-contained (includes .NET runtime, larger but no dependencies)
     - name: Build WinUI 3 (Self-contained)
       run: |
-        dotnet publish TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
-          --configuration Release `
-          --self-contained true `
-          -r win-x64 `
-          -o ./publish-winui3-selfcontained
+        msbuild TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
+          /p:Configuration=Release `
+          /p:Platform=x64 `
+          /p:RuntimeIdentifier=win-x64 `
+          /p:SelfContained=true `
+          /p:PublishDir=..\publish-winui3-selfcontained\ `
+          /t:Publish
 
-    # WinUI 3 - Framework-dependent (smaller, requires .NET 8 Desktop Runtime)
+    # WinUI 3 - Framework-dependent (smaller, requires .NET 10 Desktop Runtime)
     - name: Build WinUI 3 (Framework-dependent)
       run: |
-        dotnet publish TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
-          --configuration Release `
-          --self-contained false `
-          -r win-x64 `
-          -o ./publish-winui3-portable
+        msbuild TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
+          /p:Configuration=Release `
+          /p:Platform=x64 `
+          /p:RuntimeIdentifier=win-x64 `
+          /p:SelfContained=false `
+          /p:PublishDir=..\publish-winui3-portable\ `
+          /t:Publish
 
     # Legacy - Self-contained
     - name: Build Legacy (Self-contained)

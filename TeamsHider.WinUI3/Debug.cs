@@ -4,8 +4,9 @@ namespace TeamsHider;
 
 /// <summary>
 /// Debug logging helper. Enabled with --debug command line flag.
+/// Named DebugLog to avoid conflict with System.Diagnostics.Debug.
 /// </summary>
-public static class Debug
+public static class DebugLog
 {
     public static bool IsEnabled { get; private set; }
 

@@ -22,102 +22,102 @@ public partial class App : Application
     public App()
     {
         // Initialize debug mode from command line args
-        Debug.Initialize(Environment.GetCommandLineArgs());
-        Debug.Log("App", "Constructor called");
+        DebugLog.Initialize(Environment.GetCommandLineArgs());
+        DebugLog.Log("App", "Constructor called");
 
         InitializeComponent();
-        Debug.Log("App", "InitializeComponent completed");
+        DebugLog.Log("App", "InitializeComponent completed");
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        Debug.Log("App", "OnLaunched called");
+        DebugLog.Log("App", "OnLaunched called");
 
         // Single instance enforcement using GUID-based mutex
         _mutex = new Mutex(false, MutexId);
         if (!_mutex.WaitOne(0, false))
         {
-            Debug.Log("App", "Another instance is running - exiting");
+            DebugLog.Log("App", "Another instance is running - exiting");
             Exit();
             return;
         }
-        Debug.Log("App", "Mutex acquired - we are the only instance");
+        DebugLog.Log("App", "Mutex acquired - we are the only instance");
 
         try
         {
             // Initialize services
-            Debug.Log("App", "Initializing SettingsService...");
+            DebugLog.Log("App", "Initializing SettingsService...");
             _settingsService = new SettingsService();
             _settingsService.LoadSettings();
-            Debug.Log("App", $"Settings loaded: HideTopBar={_settingsService.CurrentSettings.HideTopBar}, HideBottomOverlay={_settingsService.CurrentSettings.HideBottomOverlay}");
+            DebugLog.Log("App", $"Settings loaded: HideTopBar={_settingsService.CurrentSettings.HideTopBar}, HideBottomOverlay={_settingsService.CurrentSettings.HideBottomOverlay}");
 
             // Sync startup setting with registry state
             bool registryStartup = StartupManager.IsStartupEnabled();
-            Debug.Log("App", $"Registry startup enabled: {registryStartup}");
+            DebugLog.Log("App", $"Registry startup enabled: {registryStartup}");
             if (_settingsService.CurrentSettings.LaunchAtStartup != registryStartup)
             {
                 _settingsService.CurrentSettings.LaunchAtStartup = registryStartup;
                 _settingsService.SaveSettings();
-                Debug.Log("App", "Synced startup setting with registry");
+                DebugLog.Log("App", "Synced startup setting with registry");
             }
 
-            Debug.Log("App", "Initializing WindowMonitorService...");
+            DebugLog.Log("App", "Initializing WindowMonitorService...");
             _monitorService = new WindowMonitorService(_settingsService);
             _monitorService.Start();
-            Debug.Log("App", "WindowMonitorService started");
+            DebugLog.Log("App", "WindowMonitorService started");
 
             // Initialize tray icon
-            Debug.Log("App", "Initializing TrayManager...");
+            DebugLog.Log("App", "Initializing TrayManager...");
             _trayManager = new TrayManager(_settingsService, ShowSettingsWindow, QuitApplication);
-            Debug.Log("App", "TrayManager initialized - app is running");
+            DebugLog.Log("App", "TrayManager initialized - app is running");
         }
         catch (Exception ex)
         {
-            Debug.LogError("Failed during OnLaunched", ex);
+            DebugLog.LogError("Failed during OnLaunched", ex);
             throw;
         }
     }
 
     private void ShowSettingsWindow()
     {
-        Debug.Log("App", "ShowSettingsWindow called");
+        DebugLog.Log("App", "ShowSettingsWindow called");
         try
         {
             if (_settingsWindow == null || _settingsWindow.AppWindow == null)
             {
-                Debug.Log("App", "Creating new SettingsWindow");
+                DebugLog.Log("App", "Creating new SettingsWindow");
                 _settingsWindow = new SettingsWindow(_settingsService!, OnSettingsChanged);
                 _settingsWindow.Closed += (s, e) =>
                 {
-                    Debug.Log("App", "SettingsWindow closed");
+                    DebugLog.Log("App", "SettingsWindow closed");
                     _settingsWindow = null;
                 };
             }
 
-            Debug.Log("App", "Activating SettingsWindow");
+            DebugLog.Log("App", "Activating SettingsWindow");
             _settingsWindow.Activate();
         }
         catch (Exception ex)
         {
-            Debug.LogError("Failed to show settings window", ex);
+            DebugLog.LogError("Failed to show settings window", ex);
         }
     }
 
     private void OnSettingsChanged()
     {
-        Debug.Log("App", "OnSettingsChanged called");
+        DebugLog.Log("App", "OnSettingsChanged called");
         _trayManager?.UpdateMenuItems();
     }
 
     private void QuitApplication()
     {
-        Debug.Log("App", "QuitApplication called");
+        DebugLog.Log("App", "QuitApplication called");
         _monitorService?.Stop();
         _trayManager?.Dispose();
         _settingsWindow?.Close();
         _mutex?.ReleaseMutex();
         _mutex?.Dispose();
-        Debug.Log("App", "Exiting...");
+        DebugLog.Log("App", "Exiting...");
         Exit();
     }
 }

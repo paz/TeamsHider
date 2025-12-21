@@ -59,7 +59,7 @@ public class AppSettingsTests
     }
 
     [Fact]
-    public void Settings_DeserializeEmptyJson_UseDefaults()
+    public void Settings_DeserializeEmptyJson_UsePropertyInitializers()
     {
         // Arrange
         string json = "{}";
@@ -69,10 +69,11 @@ public class AppSettingsTests
 
         // Assert
         Assert.NotNull(settings);
-        // When deserializing empty JSON, bool properties get C# default (false), not property initializer
-        Assert.False(settings.HideTopBar);
-        Assert.False(settings.HideBottomOverlay);
-        Assert.False(settings.LaunchAtStartup);
+        // System.Text.Json creates instance with parameterless constructor (applies property initializers),
+        // then only overwrites properties present in the JSON. Empty JSON = initializers remain.
+        Assert.True(settings.HideTopBar);      // Property initializer: true
+        Assert.True(settings.HideBottomOverlay); // Property initializer: true
+        Assert.False(settings.LaunchAtStartup);  // Property initializer: false
     }
 
     [Fact]

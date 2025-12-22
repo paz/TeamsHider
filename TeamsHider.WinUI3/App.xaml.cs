@@ -112,7 +112,7 @@ public partial class App : Application
     private void QuitApplication()
     {
         DebugLog.Log("App", "QuitApplication called");
-        _monitorService?.Stop();
+        _monitorService?.Dispose();
         _trayManager?.Dispose();
         _settingsWindow?.Close();
         _mutex?.ReleaseMutex();

@@ -42,10 +42,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="settings.conf" />
-      <EmbeddedResource Include="settings.conf">
+      <Content Include="settings.conf">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </EmbeddedResource>
+      </Content>
     </ItemGroup>
 
 </Project>

@@ -8,8 +8,9 @@ namespace TeamsHider.Services;
 /// Background service that monitors for Teams overlay windows and hides them.
 /// Uses 2-second polling interval to balance responsiveness and CPU usage.
 /// </summary>
-public class WindowMonitorService
+public class WindowMonitorService : IDisposable
 {
+    private bool _disposed;
     private readonly SettingsService _settingsService;
     private CancellationTokenSource? _cts;
     private Task? _monitorTask;
@@ -46,6 +47,19 @@ public class WindowMonitorService
         {
             // Expected when cancellation occurs
         }
+    }
+
+    /// <summary>
+    /// Disposes of resources used by the service.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        Stop();
+        _cts?.Dispose();
+        _cts = null;
     }
 
     private async Task MonitorLoop(CancellationToken ct)

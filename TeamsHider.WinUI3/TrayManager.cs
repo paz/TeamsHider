@@ -226,7 +226,7 @@ public class TrayManager : IDisposable
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = "https://github.com/paz/TeamsHider",
+                FileName = "https://github.com/mroter93/TeamsHider",
                 UseShellExecute = true
             });
             DebugLog.Log("TrayManager", "Browser opened");

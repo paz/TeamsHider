@@ -2,6 +2,7 @@ using H.NotifyIcon;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System.Diagnostics;
+using TeamsHider.Models;
 using TeamsHider.Services;
 
 namespace TeamsHider;
@@ -18,6 +19,7 @@ public class TrayManager : IDisposable
     private readonly Action _quitAction;
     private ToggleMenuFlyoutItem? _topBarToggle;
     private ToggleMenuFlyoutItem? _bottomOverlayToggle;
+    private MenuFlyoutItem? _statusItem;
 
     public TrayManager(SettingsService settingsService, Action showSettingsAction, Action quitAction)
     {
@@ -51,6 +53,15 @@ public class TrayManager : IDisposable
         // Build the context menu with WinUI 3 controls
         DebugLog.Log("TrayManager", "Building context menu...");
         var menu = new MenuFlyout();
+
+        // Status line at top (non-clickable, shows current state)
+        _statusItem = new MenuFlyoutItem
+        {
+            Text = "Status: Initializing...",
+            IsEnabled = false // Greyed out, informational only
+        };
+        menu.Items.Add(_statusItem);
+        menu.Items.Add(new MenuFlyoutSeparator());
 
         // Toggle: Hide Top Bar
         // H.NotifyIcon creates Win32 PopupMenus that call Commands, not Click events
@@ -266,6 +277,28 @@ public class TrayManager : IDisposable
         {
             _bottomOverlayToggle.IsChecked = _settingsService.CurrentSettings.HideBottomOverlay;
         }
+    }
+
+    /// <summary>
+    /// Updates the status display in the tray menu and tooltip.
+    /// Called when monitor service status changes.
+    /// </summary>
+    public void UpdateStatus(MonitorStatus status)
+    {
+        DebugLog.Log("TrayManager", $"UpdateStatus: {status.StatusMessage}");
+
+        // Update menu status item
+        if (_statusItem != null)
+        {
+            _statusItem.Text = $"Status: {status.StatusMessage}";
+        }
+
+        // Update tooltip with detailed status
+        string tooltip = status.TeamsDetected
+            ? $"TeamsHider - {status.StatusMessage}"
+            : "TeamsHider - Teams not detected";
+
+        _trayIcon.ToolTipText = tooltip;
     }
 
     public void Dispose()

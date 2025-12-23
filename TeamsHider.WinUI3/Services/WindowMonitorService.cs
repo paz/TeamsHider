@@ -14,10 +14,21 @@ public class WindowMonitorService : IDisposable
     private readonly SettingsService _settingsService;
     private CancellationTokenSource? _cts;
     private Task? _monitorTask;
+    private MonitorStatus _lastStatus = MonitorStatus.Initial;
 
     private const string BottomOverlayText = "Meeting compact view";
     private const string TeamsWindowClass = "TeamsWebView";
     private const string TeamsWindowTitle = "| Microsoft Teams";
+
+    /// <summary>
+    /// Event raised when monitoring status changes.
+    /// </summary>
+    public event Action<MonitorStatus>? StatusChanged;
+
+    /// <summary>
+    /// Gets the current monitoring status.
+    /// </summary>
+    public MonitorStatus CurrentStatus => _lastStatus;
 
     public WindowMonitorService(SettingsService settingsService)
     {
@@ -89,7 +100,8 @@ public class WindowMonitorService : IDisposable
     private void ProcessTeamsWindows()
     {
         AppSettings settings = _settingsService.CurrentSettings;
-        List<(string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd)> toHide = new();
+        List<(string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd)> teamsWindows = new();
+        int overlaysHidden = 0;
 
         // Phase 1: Enumerate all Teams windows with overlay affinity
         WindowHelper.EnumWindows(delegate(IntPtr wnd, IntPtr param)
@@ -107,7 +119,7 @@ public class WindowMonitorService : IDisposable
 
                 // Capture display affinity (identifies overlay windows)
                 WindowHelper.GetWindowDisplayAffinity(wnd, out WindowHelper.DisplayAffinity affinity);
-                toHide.Add((wdwText, affinity, wnd));
+                teamsWindows.Add((wdwText, affinity, wnd));
             }
             catch
             {
@@ -118,7 +130,7 @@ public class WindowMonitorService : IDisposable
 
         // Phase 2: Parse titles to extract participant names
         // Format: "Name1, Name2, Name3 | Microsoft Teams"
-        List<(string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd)> parsed = toHide
+        List<(string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd)> parsed = teamsWindows
             .SelectMany(x =>
             {
                 string? beforePipe = x.title.Split('|').FirstOrDefault();
@@ -152,6 +164,7 @@ public class WindowMonitorService : IDisposable
                     if (overlayItem.hwnd != IntPtr.Zero)
                     {
                         WindowHelper.ShowWindow((int)overlayItem.hwnd, WindowHelper.SW_HIDE);
+                        overlaysHidden++;
                     }
                     continue;
                 }
@@ -162,12 +175,36 @@ public class WindowMonitorService : IDisposable
                         or WindowHelper.DisplayAffinity.ExcludeFromCapture)
                 {
                     WindowHelper.ShowWindow((int)firstItem.hwnd, WindowHelper.SW_HIDE);
+                    overlaysHidden++;
                 }
             }
             catch
             {
                 // Ignored - window may have closed
             }
+        }
+
+        // Phase 4: Update and report status
+        MonitorStatus newStatus = new()
+        {
+            TeamsDetected = teamsWindows.Count > 0,
+            TeamsWindowCount = teamsWindows.Count,
+            OverlaysHidden = overlaysHidden,
+            LastScanTime = DateTime.Now
+        };
+
+        // Only notify if status changed meaningfully
+        if (newStatus.TeamsDetected != _lastStatus.TeamsDetected ||
+            newStatus.OverlaysHidden != _lastStatus.OverlaysHidden ||
+            newStatus.TeamsWindowCount != _lastStatus.TeamsWindowCount)
+        {
+            _lastStatus = newStatus;
+            StatusChanged?.Invoke(newStatus);
+        }
+        else
+        {
+            // Update timestamp even if no other changes
+            _lastStatus = newStatus;
         }
     }
 }

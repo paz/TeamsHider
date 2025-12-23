@@ -1,4 +1,6 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using TeamsHider.Models;
 using TeamsHider.Services;
 
 namespace TeamsHider;
@@ -18,6 +20,7 @@ public partial class App : Application
     private WindowMonitorService? _monitorService;
     private TrayManager? _trayManager;
     private SettingsWindow? _settingsWindow;
+    private DispatcherQueue? _dispatcherQueue;
 
     public App()
     {
@@ -61,8 +64,12 @@ public partial class App : Application
                 DebugLog.Log("App", "Synced startup setting with registry");
             }
 
+            // Get dispatcher queue for UI thread marshalling
+            _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+
             DebugLog.Log("App", "Initializing WindowMonitorService...");
             _monitorService = new WindowMonitorService(_settingsService);
+            _monitorService.StatusChanged += OnMonitorStatusChanged;
             _monitorService.Start();
             DebugLog.Log("App", "WindowMonitorService started");
 
@@ -109,10 +116,23 @@ public partial class App : Application
         _trayManager?.UpdateMenuItems();
     }
 
+    private void OnMonitorStatusChanged(MonitorStatus status)
+    {
+        // Marshal to UI thread since this is called from background monitor
+        _dispatcherQueue?.TryEnqueue(() =>
+        {
+            _trayManager?.UpdateStatus(status);
+        });
+    }
+
     private void QuitApplication()
     {
         DebugLog.Log("App", "QuitApplication called");
-        _monitorService?.Dispose();
+        if (_monitorService != null)
+        {
+            _monitorService.StatusChanged -= OnMonitorStatusChanged;
+            _monitorService.Dispose();
+        }
         _trayManager?.Dispose();
         _settingsWindow?.Close();
         _mutex?.ReleaseMutex();

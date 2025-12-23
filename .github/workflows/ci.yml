@@ -49,19 +49,35 @@ jobs:
       with:
         dotnet-version: 10.0.x
 
-    - name: Build Legacy Version
+    # Self-contained (includes .NET runtime)
+    - name: Build Legacy (Self-contained)
       run: |
         dotnet publish TeamsHider/TeamsHider.csproj `
           --configuration Release `
           --self-contained true `
           -r win-x64 `
-          -o ./publish-legacy
+          -o ./publish-legacy-selfcontained
 
-    - name: Upload Legacy Build
+    # Framework-dependent (smaller, requires .NET runtime)
+    - name: Build Legacy (Portable)
+      run: |
+        dotnet publish TeamsHider/TeamsHider.csproj `
+          --configuration Release `
+          --self-contained false `
+          -r win-x64 `
+          -o ./publish-legacy-portable
+
+    - name: Upload Legacy Self-contained
       uses: actions/upload-artifact@v4
       with:
-        name: TeamsHider-Legacy
-        path: ./publish-legacy/
+        name: TeamsHider-Legacy-SelfContained
+        path: ./publish-legacy-selfcontained/
+
+    - name: Upload Legacy Portable
+      uses: actions/upload-artifact@v4
+      with:
+        name: TeamsHider-Legacy-Portable
+        path: ./publish-legacy-portable/
 
   build-winui3:
     name: Build WinUI 3
@@ -90,7 +106,6 @@ jobs:
           ${{ runner.os }}-nuget-winui3-
 
     # Install Windows App SDK workload for MRT Core build tasks
-    # windows-latest image may already have these, but ensure they're present
     - name: Install Windows App SDK build tools
       run: |
         $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
@@ -105,19 +120,38 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore TeamsHider.WinUI3/TeamsHider.WinUI3.csproj
 
-    - name: Build WinUI 3 Version
+    # Self-contained (includes .NET runtime)
+    - name: Build WinUI 3 (Self-contained)
       run: |
         msbuild TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
           /p:Configuration=Release `
           /p:Platform=x64 `
           /p:RuntimeIdentifier=win-x64 `
           /p:SelfContained=true `
-          /p:PublishDir=..\publish-winui3\ `
+          /p:PublishDir=..\publish-winui3-selfcontained\ `
           /t:Publish `
           /m
 
-    - name: Upload WinUI 3 Build
+    # Framework-dependent (smaller, requires .NET runtime)
+    - name: Build WinUI 3 (Portable)
+      run: |
+        msbuild TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
+          /p:Configuration=Release `
+          /p:Platform=x64 `
+          /p:RuntimeIdentifier=win-x64 `
+          /p:SelfContained=false `
+          /p:PublishDir=..\publish-winui3-portable\ `
+          /t:Publish `
+          /m
+
+    - name: Upload WinUI 3 Self-contained
       uses: actions/upload-artifact@v4
       with:
-        name: TeamsHider-WinUI3
-        path: ./publish-winui3/
+        name: TeamsHider-WinUI3-SelfContained
+        path: ./publish-winui3-selfcontained/
+
+    - name: Upload WinUI 3 Portable
+      uses: actions/upload-artifact@v4
+      with:
+        name: TeamsHider-WinUI3-Portable
+        path: ./publish-winui3-portable/

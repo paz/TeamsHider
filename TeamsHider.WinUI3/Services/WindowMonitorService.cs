@@ -7,6 +7,7 @@ namespace TeamsHider.Services;
 /// <summary>
 /// Background service that monitors for Teams overlay windows and hides them.
 /// Uses 2-second polling interval to balance responsiveness and CPU usage.
+/// Tracks hidden windows to restore them when settings change or app exits.
 /// </summary>
 public class WindowMonitorService : IDisposable
 {
@@ -15,6 +16,11 @@ public class WindowMonitorService : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _monitorTask;
     private MonitorStatus _lastStatus = MonitorStatus.Initial;
+
+    // Track hidden windows to restore them when needed
+    private readonly HashSet<IntPtr> _hiddenTopBarWindows = new();
+    private readonly HashSet<IntPtr> _hiddenBottomOverlayWindows = new();
+    private readonly object _hiddenWindowsLock = new();
 
     private const string BottomOverlayText = "Meeting compact view";
     private const string TeamsWindowClass = "TeamsWebView";
@@ -62,6 +68,7 @@ public class WindowMonitorService : IDisposable
 
     /// <summary>
     /// Disposes of resources used by the service.
+    /// Restores all hidden windows before shutting down.
     /// </summary>
     public void Dispose()
     {
@@ -69,8 +76,64 @@ public class WindowMonitorService : IDisposable
         _disposed = true;
 
         Stop();
+        RestoreAllHiddenWindows();
         _cts?.Dispose();
         _cts = null;
+    }
+
+    /// <summary>
+    /// Restores all windows that were hidden by this service.
+    /// Called on app exit or when settings are disabled.
+    /// </summary>
+    public void RestoreAllHiddenWindows()
+    {
+        lock (_hiddenWindowsLock)
+        {
+            foreach (IntPtr hwnd in _hiddenTopBarWindows)
+            {
+                try { WindowHelper.ShowWindow((int)hwnd, WindowHelper.SW_SHOW); }
+                catch { /* Window may no longer exist */ }
+            }
+            foreach (IntPtr hwnd in _hiddenBottomOverlayWindows)
+            {
+                try { WindowHelper.ShowWindow((int)hwnd, WindowHelper.SW_SHOW); }
+                catch { /* Window may no longer exist */ }
+            }
+            _hiddenTopBarWindows.Clear();
+            _hiddenBottomOverlayWindows.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Restores hidden top bar windows (when HideTopBar is toggled off).
+    /// </summary>
+    public void RestoreTopBarWindows()
+    {
+        lock (_hiddenWindowsLock)
+        {
+            foreach (IntPtr hwnd in _hiddenTopBarWindows)
+            {
+                try { WindowHelper.ShowWindow((int)hwnd, WindowHelper.SW_SHOW); }
+                catch { /* Window may no longer exist */ }
+            }
+            _hiddenTopBarWindows.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Restores hidden bottom overlay windows (when HideBottomOverlay is toggled off).
+    /// </summary>
+    public void RestoreBottomOverlayWindows()
+    {
+        lock (_hiddenWindowsLock)
+        {
+            foreach (IntPtr hwnd in _hiddenBottomOverlayWindows)
+            {
+                try { WindowHelper.ShowWindow((int)hwnd, WindowHelper.SW_SHOW); }
+                catch { /* Window may no longer exist */ }
+            }
+            _hiddenBottomOverlayWindows.Clear();
+        }
     }
 
     private async Task MonitorLoop(CancellationToken ct)
@@ -102,6 +165,16 @@ public class WindowMonitorService : IDisposable
         AppSettings settings = _settingsService.CurrentSettings;
         List<(string title, WindowHelper.DisplayAffinity affinity, IntPtr hwnd)> teamsWindows = new();
         int overlaysHidden = 0;
+
+        // If settings disabled, restore windows and exit early
+        if (!settings.HideTopBar)
+        {
+            RestoreTopBarWindows();
+        }
+        if (!settings.HideBottomOverlay)
+        {
+            RestoreBottomOverlayWindows();
+        }
 
         // Phase 1: Enumerate all Teams windows with overlay affinity
         WindowHelper.EnumWindows(delegate(IntPtr wnd, IntPtr param)
@@ -164,6 +237,10 @@ public class WindowMonitorService : IDisposable
                     if (overlayItem.hwnd != IntPtr.Zero)
                     {
                         WindowHelper.ShowWindow((int)overlayItem.hwnd, WindowHelper.SW_HIDE);
+                        lock (_hiddenWindowsLock)
+                        {
+                            _hiddenBottomOverlayWindows.Add(overlayItem.hwnd);
+                        }
                         overlaysHidden++;
                     }
                     continue;
@@ -175,6 +252,10 @@ public class WindowMonitorService : IDisposable
                         or WindowHelper.DisplayAffinity.ExcludeFromCapture)
                 {
                     WindowHelper.ShowWindow((int)firstItem.hwnd, WindowHelper.SW_HIDE);
+                    lock (_hiddenWindowsLock)
+                    {
+                        _hiddenTopBarWindows.Add(firstItem.hwnd);
+                    }
                     overlaysHidden++;
                 }
             }
@@ -182,6 +263,12 @@ public class WindowMonitorService : IDisposable
             {
                 // Ignored - window may have closed
             }
+        }
+
+        // Count currently tracked hidden windows for accurate status
+        lock (_hiddenWindowsLock)
+        {
+            overlaysHidden = _hiddenTopBarWindows.Count + _hiddenBottomOverlayWindows.Count;
         }
 
         // Phase 4: Update and report status

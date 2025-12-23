@@ -5,8 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="TeamsHider">
 
-    <!-- Transparent to let window's acrylic backdrop show through -->
-    <Grid Background="Transparent" Padding="16">
+    <!-- Transparent background lets acrylic backdrop show through -->
+    <Grid Padding="16">
         <StackPanel Spacing="12">
 
             <!-- Status Card - Fluent card styling -->

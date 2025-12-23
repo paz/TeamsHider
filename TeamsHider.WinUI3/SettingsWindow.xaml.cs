@@ -46,9 +46,18 @@ public sealed partial class SettingsWindow : Window
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    private static readonly IntPtr HWND_TOPMOST = new(-1);
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOACTIVATE = 0x0010;
+
     private const uint MONITOR_DEFAULTTONEAREST = 2;
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     private const int DWMWCP_ROUND = 2;
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X, Y; }
@@ -91,10 +100,15 @@ public sealed partial class SettingsWindow : Window
     {
         var hwnd = WindowNative.GetWindowHandle(this);
 
-        // Set acrylic backdrop
+        // Apply acrylic/mica backdrop for transparency
+        // DesktopAcrylicBackdrop provides the translucent blur effect
         if (DesktopAcrylicController.IsSupported())
         {
             SystemBackdrop = new DesktopAcrylicBackdrop();
+        }
+        else if (MicaController.IsSupported())
+        {
+            SystemBackdrop = new MicaBackdrop();
         }
 
         // Get DPI for proper sizing
@@ -102,33 +116,37 @@ public sealed partial class SettingsWindow : Window
         double scale = dpi / 96.0;
 
         // Size window to fit content
-        // Height: status(40) + settings card(~160) + footer(24) + exit(36) + padding(48) + spacing(48) ≈ 360
         int width = (int)(300 * scale);
         int height = (int)(380 * scale);
         AppWindow.Resize(new SizeInt32(width, height));
 
-        // Hide title bar completely
+        // Configure title bar - extend content into it and collapse
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
             var titleBar = AppWindow.TitleBar;
             titleBar.ExtendsContentIntoTitleBar = true;
             titleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+
+            // Make title bar buttons transparent so they don't show
+            titleBar.ButtonBackgroundColor = Colors.Transparent;
+            titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
         }
 
-        // Set rounded corners (Windows 11)
+        // Set rounded corners (Windows 11 style)
         int cornerPreference = DWMWCP_ROUND;
         DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
 
-        // Configure presenter (no resize, no taskbar)
-        var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-        var appWindow = AppWindow.GetFromWindowId(windowId);
-        if (appWindow.Presenter is OverlappedPresenter presenter)
+        // Configure presenter for borderless popup-like window
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
             presenter.SetBorderAndTitleBar(false, false);
         }
+
+        // Set window as topmost so it appears above other windows
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
 
     /// <summary>
@@ -139,6 +157,11 @@ public sealed partial class SettingsWindow : Window
         _isClosing = false;
         PositionAtCursor();
         LoadSettings(); // Refresh settings
+
+        // Ensure window is topmost when shown
+        var hwnd = WindowNative.GetWindowHandle(this);
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
         Activate();
     }
 

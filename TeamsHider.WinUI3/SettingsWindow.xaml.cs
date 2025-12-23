@@ -101,9 +101,10 @@ public sealed partial class SettingsWindow : Window
         int dpi = GetDpiForWindow(hwnd);
         double scale = dpi / 96.0;
 
-        // Size window to fit content (compact flyout size)
-        int width = (int)(280 * scale);
-        int height = (int)(340 * scale);
+        // Size window to fit content
+        // Height: status(40) + settings card(~160) + footer(24) + exit(36) + padding(48) + spacing(48) ≈ 360
+        int width = (int)(300 * scale);
+        int height = (int)(380 * scale);
         AppWindow.Resize(new SizeInt32(width, height));
 
         // Hide title bar completely

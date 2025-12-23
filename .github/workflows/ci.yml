@@ -59,12 +59,12 @@ jobs:
           -o ./publish-legacy-selfcontained
 
     # Framework-dependent (smaller, requires .NET runtime)
+    # Note: No -r flag for truly portable output (uses AnyCPU)
     - name: Build Legacy (Portable)
       run: |
         dotnet publish TeamsHider/TeamsHider.csproj `
           --configuration Release `
           --self-contained false `
-          -r win-x64 `
           -o ./publish-legacy-portable
 
     - name: Upload Legacy Self-contained

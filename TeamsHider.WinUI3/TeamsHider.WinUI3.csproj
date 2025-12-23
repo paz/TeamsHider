@@ -22,9 +22,13 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <!-- Compression only works with self-contained builds -->
+
+    <!--
+      Single-file publishing only for self-contained builds.
+      Framework-dependent builds stay as multiple files for smaller size.
+    -->
+    <PublishSingleFile Condition="'$(SelfContained)' == 'true'">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(SelfContained)' == 'true'">true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
 
     <!-- Size optimizations -->

@@ -25,12 +25,11 @@
       <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
       <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 
-      <!-- Size optimizations -->
-      <PublishTrimmed>true</PublishTrimmed>
-      <TrimMode>partial</TrimMode>
+      <!--
+        Size optimizations (trimming not supported for Windows Forms)
+        See: https://aka.ms/dotnet-illink/windows-forms
+      -->
       <InvariantGlobalization>true</InvariantGlobalization>
-      <StackTraceSupport>false</StackTraceSupport>
-      <UseSystemResourceKeys>true</UseSystemResourceKeys>
     </PropertyGroup>
 
     <ItemGroup>

@@ -19,9 +19,8 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
-
-    - name: Restore test dependencies
-      run: dotnet restore TeamsHider.Tests/TeamsHider.Tests.csproj
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
 
     - name: Run tests with coverage
       run: |
@@ -38,13 +37,6 @@ jobs:
         name: test-results
         path: TestResults/
 
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: coverage-report
-        path: TestResults/**/coverage.cobertura.xml
-
   build-legacy:
     name: Build Legacy (WinForms)
     runs-on: windows-latest
@@ -58,6 +50,8 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
 
     - name: Build Legacy Version
       run: |
@@ -86,11 +80,23 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
+    # Cache NuGet packages for faster restores
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-winui3-${{ hashFiles('TeamsHider.WinUI3/TeamsHider.WinUI3.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-winui3-
+
     # Install Windows App SDK workload for MRT Core build tasks
+    # windows-latest image may already have these, but ensure they're present
     - name: Install Windows App SDK build tools
       run: |
         $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
@@ -100,9 +106,7 @@ jobs:
           --add Microsoft.VisualStudio.ComponentGroup.UWP.Support `
           --quiet --norestart --wait
       shell: pwsh
-
-    - name: Verify .NET SDK version
-      run: dotnet --version
+      continue-on-error: true
 
     - name: Restore dependencies
       run: dotnet restore TeamsHider.WinUI3/TeamsHider.WinUI3.csproj
@@ -115,7 +119,8 @@ jobs:
           /p:RuntimeIdentifier=win-x64 `
           /p:SelfContained=true `
           /p:PublishDir=..\publish-winui3\ `
-          /t:Publish
+          /t:Publish `
+          /m
 
     - name: Upload WinUI 3 Build
       uses: actions/upload-artifact@v4

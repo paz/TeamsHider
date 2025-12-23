@@ -82,6 +82,15 @@ public partial class App : Application
             DebugLog.Log("App", "Initializing TrayManager...");
             _trayManager = new TrayManager(_settingsService, ShowSettingsWindow, QuitApplication);
             DebugLog.Log("App", "TrayManager initialized - app is running");
+
+            // Handle first launch: show welcome balloon to help users find the tray icon
+            if (!_settingsService.CurrentSettings.FirstLaunchCompleted)
+            {
+                DebugLog.Log("App", "First launch detected - showing welcome balloon");
+                _trayManager.ShowWelcomeBalloon();
+                _settingsService.CurrentSettings.FirstLaunchCompleted = true;
+                _settingsService.SaveSettings();
+            }
         }
         catch (Exception ex)
         {

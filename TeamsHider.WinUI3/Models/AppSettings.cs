@@ -24,6 +24,12 @@ public class AppSettings
     public bool LaunchAtStartup { get; set; } = false;
 
     /// <summary>
+    /// Indicates first launch has been completed.
+    /// Used to show welcome balloon on initial run.
+    /// </summary>
+    public bool FirstLaunchCompleted { get; set; } = false;
+
+    /// <summary>
     /// Extensibility for future settings without breaking compatibility.
     /// </summary>
     [JsonExtensionData]

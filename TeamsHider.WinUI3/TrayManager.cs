@@ -271,6 +271,27 @@ public class TrayManager : IDisposable
     }
 
     /// <summary>
+    /// Shows a welcome balloon tip on first launch to help users find the tray icon.
+    /// </summary>
+    public void ShowWelcomeBalloon()
+    {
+        DebugLog.Log("TrayManager", "ShowWelcomeBalloon called");
+        try
+        {
+            _trayIcon.ShowNotification(
+                title: "TeamsHider is running",
+                message: "Right-click this icon to access settings or exit.",
+                icon: H.NotifyIcon.Core.NotificationIcon.Info,
+                timeout: TimeSpan.FromSeconds(5));
+            DebugLog.Log("TrayManager", "Welcome balloon shown");
+        }
+        catch (Exception ex)
+        {
+            DebugLog.LogError("Failed to show welcome balloon", ex);
+        }
+    }
+
+    /// <summary>
     /// Updates toggle states to reflect current settings.
     /// Called after settings change from Settings window.
     /// </summary>

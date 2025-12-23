@@ -24,7 +24,8 @@
     <DebugSymbols>false</DebugSymbols>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Compression only works with self-contained builds -->
+    <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
 
     <!-- Size optimizations -->
     <OptimizationPreference>Size</OptimizationPreference>

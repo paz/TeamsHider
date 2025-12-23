@@ -12,7 +12,7 @@ namespace TeamsHider;
 /// </summary>
 public class TrayManager : IDisposable
 {
-    private readonly TaskbarIcon _trayIcon;
+    private readonly TaskbarIcon _trayIcon = null!; // Initialized in constructor, throws if fails
     private readonly Action _showFlyoutAction;
     private MonitorStatus _lastStatus = MonitorStatus.Initial;
 

@@ -14,8 +14,8 @@ namespace TeamsHider;
 
 /// <summary>
 /// Settings flyout for TeamsHider.
-/// Positioned at cursor location with Mica backdrop.
-/// Auto-closes when focus is lost for flyout-like behavior.
+/// Styled as Windows 11 flyout with acrylic, rounded corners, no titlebar.
+/// Reuses window instance for fast show/hide.
 /// </summary>
 public sealed partial class SettingsWindow : Window
 {
@@ -23,13 +23,14 @@ public sealed partial class SettingsWindow : Window
     private readonly Action? _onSettingsChanged;
     private readonly Action? _onExitRequested;
     private bool _isInitializing = true;
+    private bool _isClosing = false;
 
     // Colors for status indicator
     private static readonly SolidColorBrush GreenBrush = new(Colors.LimeGreen);
     private static readonly SolidColorBrush OrangeBrush = new(Colors.Orange);
     private static readonly SolidColorBrush GrayBrush = new(Colors.Gray);
 
-    // Win32 interop for cursor position
+    // Win32 interop
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out POINT lpPoint);
 
@@ -39,23 +40,21 @@ public sealed partial class SettingsWindow : Window
     [DllImport("user32.dll")]
     private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
+    [DllImport("user32.dll")]
+    private static extern int GetDpiForWindow(IntPtr hwnd);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
     private const uint MONITOR_DEFAULTTONEAREST = 2;
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWCP_ROUND = 2;
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct POINT
-    {
-        public int X;
-        public int Y;
-    }
+    private struct POINT { public int X, Y; }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
+    private struct RECT { public int Left, Top, Right, Bottom; }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MONITORINFO
@@ -74,14 +73,8 @@ public sealed partial class SettingsWindow : Window
 
         InitializeComponent();
 
-        // Apply Mica backdrop for Windows 11 look
-        TrySetMicaBackdrop();
-
-        // Configure window appearance
-        ConfigureWindow();
-
-        // Position at cursor location (handles multi-monitor)
-        PositionAtCursor();
+        // Configure window for flyout appearance
+        ConfigureAsFlyout();
 
         // Load current settings
         LoadSettings();
@@ -90,65 +83,78 @@ public sealed partial class SettingsWindow : Window
         // Handle keyboard shortcuts
         Content.KeyDown += OnKeyDown;
 
-        // Close when window loses focus (flyout behavior)
+        // Hide on deactivation (flyout behavior)
         Activated += OnActivated;
     }
 
-    private void TrySetMicaBackdrop()
+    private void ConfigureAsFlyout()
     {
-        if (MicaController.IsSupported())
-        {
-            SystemBackdrop = new MicaBackdrop { Kind = MicaKind.Base };
-        }
-        else if (DesktopAcrylicController.IsSupported())
+        var hwnd = WindowNative.GetWindowHandle(this);
+
+        // Set acrylic backdrop
+        if (DesktopAcrylicController.IsSupported())
         {
             SystemBackdrop = new DesktopAcrylicBackdrop();
         }
-    }
 
-    private void ConfigureWindow()
-    {
-        // Compact size for flyout appearance
-        AppWindow.Resize(new SizeInt32(340, 420));
-        Title = "TeamsHider";
+        // Get DPI for proper sizing
+        int dpi = GetDpiForWindow(hwnd);
+        double scale = dpi / 96.0;
 
-        // Configure title bar
+        // Size window to fit content (compact flyout size)
+        int width = (int)(280 * scale);
+        int height = (int)(340 * scale);
+        AppWindow.Resize(new SizeInt32(width, height));
+
+        // Hide title bar completely
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
             var titleBar = AppWindow.TitleBar;
-            titleBar.ExtendsContentIntoTitleBar = false;
-            titleBar.ButtonBackgroundColor = Colors.Transparent;
-            titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+            titleBar.ExtendsContentIntoTitleBar = true;
+            titleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
         }
 
-        // Set as tool window (no taskbar button)
-        var hwnd = WindowNative.GetWindowHandle(this);
+        // Set rounded corners (Windows 11)
+        int cornerPreference = DWMWCP_ROUND;
+        DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
+
+        // Configure presenter (no resize, no taskbar)
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = AppWindow.GetFromWindowId(windowId);
-
         if (appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
+            presenter.SetBorderAndTitleBar(false, false);
         }
+    }
+
+    /// <summary>
+    /// Shows the flyout at the current cursor position.
+    /// </summary>
+    public void ShowAtCursor()
+    {
+        _isClosing = false;
+        PositionAtCursor();
+        LoadSettings(); // Refresh settings
+        Activate();
     }
 
     private void PositionAtCursor()
     {
-        // Get cursor position
+        var hwnd = WindowNative.GetWindowHandle(this);
+        int dpi = GetDpiForWindow(hwnd);
+        double scale = dpi / 96.0;
+
         if (!GetCursorPos(out POINT cursorPos))
         {
-            // Fallback to primary display bottom-right
             PositionFallback();
             return;
         }
 
-        // Get the monitor at cursor position
         IntPtr hMonitor = MonitorFromPoint(cursorPos, MONITOR_DEFAULTTONEAREST);
-
-        var monitorInfo = new MONITORINFO();
-        monitorInfo.cbSize = Marshal.SizeOf<MONITORINFO>();
+        var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
 
         if (!GetMonitorInfo(hMonitor, ref monitorInfo))
         {
@@ -156,47 +162,41 @@ public sealed partial class SettingsWindow : Window
             return;
         }
 
-        // Work area excludes taskbar
         var workArea = monitorInfo.rcWork;
         var windowSize = AppWindow.Size;
+        int padding = (int)(12 * scale);
 
-        // Determine taskbar position by comparing monitor rect to work area
-        int taskbarHeight = monitorInfo.rcMonitor.Bottom - workArea.Bottom;
+        // Detect taskbar position
+        int taskbarBottom = monitorInfo.rcMonitor.Bottom - workArea.Bottom;
         int taskbarTop = workArea.Top - monitorInfo.rcMonitor.Top;
-        int taskbarLeft = workArea.Left - monitorInfo.rcMonitor.Left;
         int taskbarRight = monitorInfo.rcMonitor.Right - workArea.Right;
+        int taskbarLeft = workArea.Left - monitorInfo.rcMonitor.Left;
 
         int x, y;
-        int padding = 12;
 
-        // Position based on likely taskbar location (usually bottom or right)
-        if (taskbarHeight > 0)
+        if (taskbarBottom > 0)
         {
-            // Taskbar at bottom - position above it, near cursor X
+            // Taskbar at bottom
             x = Math.Clamp(cursorPos.X - windowSize.Width / 2, workArea.Left + padding, workArea.Right - windowSize.Width - padding);
             y = workArea.Bottom - windowSize.Height - padding;
         }
         else if (taskbarRight > 0)
         {
-            // Taskbar at right - position left of it
             x = workArea.Right - windowSize.Width - padding;
             y = Math.Clamp(cursorPos.Y - windowSize.Height / 2, workArea.Top + padding, workArea.Bottom - windowSize.Height - padding);
         }
         else if (taskbarTop > 0)
         {
-            // Taskbar at top - position below it
             x = Math.Clamp(cursorPos.X - windowSize.Width / 2, workArea.Left + padding, workArea.Right - windowSize.Width - padding);
             y = workArea.Top + padding;
         }
         else if (taskbarLeft > 0)
         {
-            // Taskbar at left - position right of it
             x = workArea.Left + padding;
             y = Math.Clamp(cursorPos.Y - windowSize.Height / 2, workArea.Top + padding, workArea.Bottom - windowSize.Height - padding);
         }
         else
         {
-            // No taskbar detected, position at bottom-right
             x = workArea.Right - windowSize.Width - padding;
             y = workArea.Bottom - windowSize.Height - padding;
         }
@@ -206,7 +206,6 @@ public sealed partial class SettingsWindow : Window
 
     private void PositionFallback()
     {
-        // Fallback: use primary display bottom-right
         var hwnd = WindowNative.GetWindowHandle(this);
         var displayArea = DisplayArea.GetFromWindowId(
             Win32Interop.GetWindowIdFromWindow(hwnd),
@@ -216,54 +215,39 @@ public sealed partial class SettingsWindow : Window
         var windowSize = AppWindow.Size;
         int padding = 12;
 
-        int x = workArea.X + workArea.Width - windowSize.Width - padding;
-        int y = workArea.Y + workArea.Height - windowSize.Height - padding;
-
-        AppWindow.Move(new PointInt32(x, y));
+        AppWindow.Move(new PointInt32(
+            workArea.X + workArea.Width - windowSize.Width - padding,
+            workArea.Y + workArea.Height - windowSize.Height - padding));
     }
 
     private void OnActivated(object sender, WindowActivatedEventArgs args)
     {
-        // Close when window loses focus (flyout behavior)
-        if (args.WindowActivationState == WindowActivationState.Deactivated)
+        if (args.WindowActivationState == WindowActivationState.Deactivated && !_isClosing)
         {
-            Close();
+            // Hide instead of close for faster re-show
+            AppWindow.Hide();
         }
     }
 
     private void LoadSettings()
     {
+        _isInitializing = true;
         HideTopBarToggle.IsOn = _settingsService.CurrentSettings.HideTopBar;
         HideBottomOverlayToggle.IsOn = _settingsService.CurrentSettings.HideBottomOverlay;
         LaunchAtStartupToggle.IsOn = _settingsService.CurrentSettings.LaunchAtStartup;
+        _isInitializing = false;
     }
 
-    /// <summary>
-    /// Updates the status display with current monitoring state.
-    /// </summary>
     public void UpdateStatus(MonitorStatus status)
     {
         StatusText.Text = status.StatusMessage;
-
-        // Set indicator color based on state
-        if (status.OverlaysHidden > 0)
-        {
-            StatusIndicator.Fill = GreenBrush; // Actively hiding
-        }
-        else if (status.TeamsDetected)
-        {
-            StatusIndicator.Fill = OrangeBrush; // Monitoring (Teams detected)
-        }
-        else
-        {
-            StatusIndicator.Fill = GrayBrush; // Idle (Teams not detected)
-        }
+        StatusIndicator.Fill = status.OverlaysHidden > 0 ? GreenBrush
+            : status.TeamsDetected ? OrangeBrush : GrayBrush;
     }
 
     private void OnHideTopBarToggled(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;
-
         _settingsService.CurrentSettings.HideTopBar = HideTopBarToggle.IsOn;
         _settingsService.SaveSettings();
         _onSettingsChanged?.Invoke();
@@ -272,7 +256,6 @@ public sealed partial class SettingsWindow : Window
     private void OnHideBottomOverlayToggled(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;
-
         _settingsService.CurrentSettings.HideBottomOverlay = HideBottomOverlayToggle.IsOn;
         _settingsService.SaveSettings();
         _onSettingsChanged?.Invoke();
@@ -281,7 +264,6 @@ public sealed partial class SettingsWindow : Window
     private void OnLaunchAtStartupToggled(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;
-
         bool enabled = LaunchAtStartupToggle.IsOn;
         _settingsService.CurrentSettings.LaunchAtStartup = enabled;
         _settingsService.SaveSettings();
@@ -291,15 +273,15 @@ public sealed partial class SettingsWindow : Window
 
     private void OnExitClicked(object sender, RoutedEventArgs e)
     {
+        _isClosing = true;
         _onExitRequested?.Invoke();
     }
 
     private void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        // Escape to close window
         if (e.Key == Windows.System.VirtualKey.Escape)
         {
-            Close();
+            AppWindow.Hide();
         }
     }
 }

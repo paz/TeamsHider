@@ -5,9 +5,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="TeamsHider">
 
-    <Grid>
-        <!-- Main content with padding -->
-        <Grid Padding="20" RowSpacing="12">
+    <!-- Root border for rounded corners when titlebar is hidden -->
+    <Border Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+            CornerRadius="8">
+        <Grid Padding="16" RowSpacing="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -15,7 +16,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
@@ -23,87 +24,94 @@
             <Border Grid.Row="0"
                     x:Name="StatusBorder"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    CornerRadius="8"
-                    Padding="12,10">
+                    CornerRadius="6"
+                    Padding="12,8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Ellipse x:Name="StatusIndicator"
-                             Width="10" Height="10"
+                             Width="8" Height="8"
                              Fill="{ThemeResource SystemFillColorNeutralBrush}"
                              VerticalAlignment="Center"
-                             Margin="0,0,10,0"/>
+                             Margin="0,0,8,0"/>
                     <TextBlock Grid.Column="1"
                                x:Name="StatusText"
                                Text="Initializing..."
                                VerticalAlignment="Center"
-                               Style="{StaticResource BodyTextBlockStyle}"/>
+                               FontSize="13"/>
                 </Grid>
             </Border>
 
             <!-- Section: Overlay Settings -->
             <TextBlock Grid.Row="1"
                        Text="Overlay Settings"
-                       Style="{StaticResource BodyStrongTextBlockStyle}"
-                       Margin="0,8,0,0"/>
+                       FontWeight="SemiBold"
+                       FontSize="13"
+                       Margin="0,4,0,0"/>
 
             <!-- Hide Top Bar Toggle -->
             <ToggleSwitch Grid.Row="2"
                           x:Name="HideTopBarToggle"
-                          Header="Hide top bar during screen sharing"
+                          Header="Hide top bar"
                           OnContent="On"
                           OffContent="Off"
-                          Toggled="OnHideTopBarToggled"/>
+                          Toggled="OnHideTopBarToggled"
+                          MinWidth="0"/>
 
             <!-- Hide Bottom Overlay Toggle -->
             <ToggleSwitch Grid.Row="3"
                           x:Name="HideBottomOverlayToggle"
-                          Header="Hide minimized call overlay"
+                          Header="Hide bottom overlay"
                           OnContent="On"
                           OffContent="Off"
-                          Toggled="OnHideBottomOverlayToggled"/>
+                          Toggled="OnHideBottomOverlayToggled"
+                          MinWidth="0"/>
 
             <!-- Section: General -->
             <TextBlock Grid.Row="4"
                        Text="General"
-                       Style="{StaticResource BodyStrongTextBlockStyle}"
-                       Margin="0,8,0,0"/>
+                       FontWeight="SemiBold"
+                       FontSize="13"
+                       Margin="0,4,0,0"/>
 
             <!-- Launch at Startup Toggle -->
             <ToggleSwitch Grid.Row="5"
                           x:Name="LaunchAtStartupToggle"
-                          Header="Launch at Windows startup"
+                          Header="Start with Windows"
                           OnContent="On"
                           OffContent="Off"
-                          Toggled="OnLaunchAtStartupToggled"/>
+                          Toggled="OnLaunchAtStartupToggled"
+                          MinWidth="0"/>
 
-            <!-- Exit button -->
-            <Button Grid.Row="6"
+            <!-- Footer with GitHub link -->
+            <StackPanel Grid.Row="6"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Spacing="6"
+                        Margin="0,4,0,0">
+                <HyperlinkButton Content="GitHub"
+                                 NavigateUri="https://github.com/mroter93/TeamsHider"
+                                 FontSize="11"
+                                 Padding="4,2"/>
+                <TextBlock Text="·"
+                           VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           FontSize="11"/>
+                <TextBlock Text="v5.0"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <!-- Exit button at bottom -->
+            <Button Grid.Row="7"
                     x:Name="ExitButton"
-                    Content="Exit TeamsHider"
+                    Content="Exit"
                     HorizontalAlignment="Stretch"
                     Click="OnExitClicked"
                     Margin="0,8,0,0"/>
-
-            <!-- Footer -->
-            <StackPanel Grid.Row="7"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Center"
-                        Spacing="8"
-                        Margin="0,8,0,0">
-                <HyperlinkButton Content="GitHub"
-                                 NavigateUri="https://github.com/mroter93/TeamsHider"
-                                 FontSize="12"/>
-                <TextBlock Text="·"
-                           VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="v5.0"
-                           VerticalAlignment="Center"
-                           FontSize="12"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </StackPanel>
         </Grid>
-    </Grid>
+    </Border>
 </Window>

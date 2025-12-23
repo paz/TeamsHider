@@ -83,6 +83,10 @@ public partial class App : Application
             _trayManager = new TrayManager(_settingsService, ShowSettingsWindow, QuitApplication);
             DebugLog.Log("App", "TrayManager initialized - app is running");
 
+            // Pre-create settings flyout for fast show/hide
+            DebugLog.Log("App", "Pre-creating SettingsWindow flyout...");
+            _settingsWindow = new SettingsWindow(_settingsService, OnSettingsChanged, QuitApplication);
+
             // Handle first launch: show welcome balloon to help users find the tray icon
             if (!_settingsService.CurrentSettings.FirstLaunchCompleted)
             {
@@ -104,21 +108,11 @@ public partial class App : Application
         DebugLog.Log("App", "ShowSettingsWindow called");
         try
         {
-            // Always create a new window since flyout closes on deactivation
-            if (_settingsWindow != null)
+            if (_settingsWindow == null)
             {
-                // Close existing if somehow still around
-                try { _settingsWindow.Close(); } catch { }
-                _settingsWindow = null;
+                DebugLog.Log("App", "Creating SettingsWindow flyout");
+                _settingsWindow = new SettingsWindow(_settingsService!, OnSettingsChanged, QuitApplication);
             }
-
-            DebugLog.Log("App", "Creating new SettingsWindow flyout");
-            _settingsWindow = new SettingsWindow(_settingsService!, OnSettingsChanged, QuitApplication);
-            _settingsWindow.Closed += (s, e) =>
-            {
-                DebugLog.Log("App", "SettingsWindow closed");
-                _settingsWindow = null;
-            };
 
             // Update with current status
             if (_monitorService != null)
@@ -130,8 +124,8 @@ public partial class App : Application
                 _settingsWindow.UpdateStatus(_trayManager.CurrentStatus);
             }
 
-            DebugLog.Log("App", "Activating SettingsWindow");
-            _settingsWindow.Activate();
+            DebugLog.Log("App", "Showing SettingsWindow at cursor");
+            _settingsWindow.ShowAtCursor();
         }
         catch (Exception ex)
         {

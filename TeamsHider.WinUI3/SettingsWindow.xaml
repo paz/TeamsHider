@@ -14,6 +14,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -78,8 +79,16 @@
                           OffContent="Off"
                           Toggled="OnLaunchAtStartupToggled"/>
 
+            <!-- Exit button -->
+            <Button Grid.Row="6"
+                    x:Name="ExitButton"
+                    Content="Exit TeamsHider"
+                    HorizontalAlignment="Stretch"
+                    Click="OnExitClicked"
+                    Margin="0,8,0,0"/>
+
             <!-- Footer -->
-            <StackPanel Grid.Row="6"
+            <StackPanel Grid.Row="7"
                         Orientation="Horizontal"
                         HorizontalAlignment="Center"
                         Spacing="8"

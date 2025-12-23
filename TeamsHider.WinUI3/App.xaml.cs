@@ -104,21 +104,30 @@ public partial class App : Application
         DebugLog.Log("App", "ShowSettingsWindow called");
         try
         {
-            if (_settingsWindow == null || _settingsWindow.AppWindow == null)
+            // Always create a new window since flyout closes on deactivation
+            if (_settingsWindow != null)
             {
-                DebugLog.Log("App", "Creating new SettingsWindow");
-                _settingsWindow = new SettingsWindow(_settingsService!, OnSettingsChanged);
-                _settingsWindow.Closed += (s, e) =>
-                {
-                    DebugLog.Log("App", "SettingsWindow closed");
-                    _settingsWindow = null;
-                };
+                // Close existing if somehow still around
+                try { _settingsWindow.Close(); } catch { }
+                _settingsWindow = null;
             }
+
+            DebugLog.Log("App", "Creating new SettingsWindow flyout");
+            _settingsWindow = new SettingsWindow(_settingsService!, OnSettingsChanged, QuitApplication);
+            _settingsWindow.Closed += (s, e) =>
+            {
+                DebugLog.Log("App", "SettingsWindow closed");
+                _settingsWindow = null;
+            };
 
             // Update with current status
             if (_monitorService != null)
             {
                 _settingsWindow.UpdateStatus(_monitorService.CurrentStatus);
+            }
+            else if (_trayManager != null)
+            {
+                _settingsWindow.UpdateStatus(_trayManager.CurrentStatus);
             }
 
             DebugLog.Log("App", "Activating SettingsWindow");
@@ -133,7 +142,7 @@ public partial class App : Application
     private void OnSettingsChanged()
     {
         DebugLog.Log("App", "OnSettingsChanged called");
-        _trayManager?.UpdateMenuItems();
+        // Settings are now handled directly via the flyout
     }
 
     private void OnMonitorStatusChanged(MonitorStatus status)

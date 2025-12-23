@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using System.Runtime.InteropServices;
 using TeamsHider.Models;
 using TeamsHider.Services;
 using Windows.Graphics;
@@ -12,13 +13,15 @@ using WinRT.Interop;
 namespace TeamsHider;
 
 /// <summary>
-/// Settings window for TeamsHider.
-/// Flyout-style window positioned near the taskbar with Mica backdrop.
+/// Settings flyout for TeamsHider.
+/// Positioned at cursor location with Mica backdrop.
+/// Auto-closes when focus is lost for flyout-like behavior.
 /// </summary>
 public sealed partial class SettingsWindow : Window
 {
     private readonly SettingsService _settingsService;
     private readonly Action? _onSettingsChanged;
+    private readonly Action? _onExitRequested;
     private bool _isInitializing = true;
 
     // Colors for status indicator
@@ -26,10 +29,48 @@ public sealed partial class SettingsWindow : Window
     private static readonly SolidColorBrush OrangeBrush = new(Colors.Orange);
     private static readonly SolidColorBrush GrayBrush = new(Colors.Gray);
 
-    public SettingsWindow(SettingsService settingsService, Action? onSettingsChanged = null)
+    // Win32 interop for cursor position
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    public SettingsWindow(SettingsService settingsService, Action? onSettingsChanged = null, Action? onExitRequested = null)
     {
         _settingsService = settingsService;
         _onSettingsChanged = onSettingsChanged;
+        _onExitRequested = onExitRequested;
 
         InitializeComponent();
 
@@ -39,8 +80,8 @@ public sealed partial class SettingsWindow : Window
         // Configure window appearance
         ConfigureWindow();
 
-        // Position near taskbar
-        PositionNearTaskbar();
+        // Position at cursor location (handles multi-monitor)
+        PositionAtCursor();
 
         // Load current settings
         LoadSettings();
@@ -49,8 +90,8 @@ public sealed partial class SettingsWindow : Window
         // Handle keyboard shortcuts
         Content.KeyDown += OnKeyDown;
 
-        // Close on deactivation for flyout-like behavior (optional, can be too aggressive)
-        // Activated += OnActivated;
+        // Close when window loses focus (flyout behavior)
+        Activated += OnActivated;
     }
 
     private void TrySetMicaBackdrop()
@@ -68,7 +109,7 @@ public sealed partial class SettingsWindow : Window
     private void ConfigureWindow()
     {
         // Compact size for flyout appearance
-        AppWindow.Resize(new SizeInt32(340, 380));
+        AppWindow.Resize(new SizeInt32(340, 420));
         Title = "TeamsHider";
 
         // Configure title bar
@@ -93,9 +134,79 @@ public sealed partial class SettingsWindow : Window
         }
     }
 
-    private void PositionNearTaskbar()
+    private void PositionAtCursor()
     {
-        // Get screen dimensions
+        // Get cursor position
+        if (!GetCursorPos(out POINT cursorPos))
+        {
+            // Fallback to primary display bottom-right
+            PositionFallback();
+            return;
+        }
+
+        // Get the monitor at cursor position
+        IntPtr hMonitor = MonitorFromPoint(cursorPos, MONITOR_DEFAULTTONEAREST);
+
+        var monitorInfo = new MONITORINFO();
+        monitorInfo.cbSize = Marshal.SizeOf<MONITORINFO>();
+
+        if (!GetMonitorInfo(hMonitor, ref monitorInfo))
+        {
+            PositionFallback();
+            return;
+        }
+
+        // Work area excludes taskbar
+        var workArea = monitorInfo.rcWork;
+        var windowSize = AppWindow.Size;
+
+        // Determine taskbar position by comparing monitor rect to work area
+        int taskbarHeight = monitorInfo.rcMonitor.Bottom - workArea.Bottom;
+        int taskbarTop = workArea.Top - monitorInfo.rcMonitor.Top;
+        int taskbarLeft = workArea.Left - monitorInfo.rcMonitor.Left;
+        int taskbarRight = monitorInfo.rcMonitor.Right - workArea.Right;
+
+        int x, y;
+        int padding = 12;
+
+        // Position based on likely taskbar location (usually bottom or right)
+        if (taskbarHeight > 0)
+        {
+            // Taskbar at bottom - position above it, near cursor X
+            x = Math.Clamp(cursorPos.X - windowSize.Width / 2, workArea.Left + padding, workArea.Right - windowSize.Width - padding);
+            y = workArea.Bottom - windowSize.Height - padding;
+        }
+        else if (taskbarRight > 0)
+        {
+            // Taskbar at right - position left of it
+            x = workArea.Right - windowSize.Width - padding;
+            y = Math.Clamp(cursorPos.Y - windowSize.Height / 2, workArea.Top + padding, workArea.Bottom - windowSize.Height - padding);
+        }
+        else if (taskbarTop > 0)
+        {
+            // Taskbar at top - position below it
+            x = Math.Clamp(cursorPos.X - windowSize.Width / 2, workArea.Left + padding, workArea.Right - windowSize.Width - padding);
+            y = workArea.Top + padding;
+        }
+        else if (taskbarLeft > 0)
+        {
+            // Taskbar at left - position right of it
+            x = workArea.Left + padding;
+            y = Math.Clamp(cursorPos.Y - windowSize.Height / 2, workArea.Top + padding, workArea.Bottom - windowSize.Height - padding);
+        }
+        else
+        {
+            // No taskbar detected, position at bottom-right
+            x = workArea.Right - windowSize.Width - padding;
+            y = workArea.Bottom - windowSize.Height - padding;
+        }
+
+        AppWindow.Move(new PointInt32(x, y));
+    }
+
+    private void PositionFallback()
+    {
+        // Fallback: use primary display bottom-right
         var hwnd = WindowNative.GetWindowHandle(this);
         var displayArea = DisplayArea.GetFromWindowId(
             Win32Interop.GetWindowIdFromWindow(hwnd),
@@ -103,13 +214,21 @@ public sealed partial class SettingsWindow : Window
 
         var workArea = displayArea.WorkArea;
         var windowSize = AppWindow.Size;
-
-        // Position in bottom-right corner with padding
         int padding = 12;
+
         int x = workArea.X + workArea.Width - windowSize.Width - padding;
         int y = workArea.Y + workArea.Height - windowSize.Height - padding;
 
         AppWindow.Move(new PointInt32(x, y));
+    }
+
+    private void OnActivated(object sender, WindowActivatedEventArgs args)
+    {
+        // Close when window loses focus (flyout behavior)
+        if (args.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            Close();
+        }
     }
 
     private void LoadSettings()
@@ -168,6 +287,11 @@ public sealed partial class SettingsWindow : Window
         _settingsService.SaveSettings();
         StartupManager.SetStartup(enabled);
         _onSettingsChanged?.Invoke();
+    }
+
+    private void OnExitClicked(object sender, RoutedEventArgs e)
+    {
+        _onExitRequested?.Invoke();
     }
 
     private void OnKeyDown(object sender, KeyRoutedEventArgs e)

@@ -19,8 +19,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
-        cache: true
-        cache-dependency-path: '**/packages.lock.json'
 
     - name: Run tests with coverage
       run: |
@@ -50,8 +48,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
-        cache: true
-        cache-dependency-path: '**/packages.lock.json'
 
     - name: Build Legacy Version
       run: |
@@ -80,8 +76,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
-        cache: true
-        cache-dependency-path: '**/packages.lock.json'
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2

@@ -3,60 +3,98 @@
     x:Class="TeamsHider.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="TeamsHider Settings">
+    Title="TeamsHider">
 
-    <Grid Padding="24" RowSpacing="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <!-- Main content with padding -->
+        <Grid Padding="20" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Title -->
-        <TextBlock Grid.Row="0"
-                   Text="TeamsHider Settings"
-                   Style="{StaticResource TitleTextBlockStyle}"
-                   Margin="0,0,0,8"/>
+            <!-- Status indicator at top -->
+            <Border Grid.Row="0"
+                    x:Name="StatusBorder"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    CornerRadius="8"
+                    Padding="12,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Ellipse x:Name="StatusIndicator"
+                             Width="10" Height="10"
+                             Fill="{ThemeResource SystemFillColorNeutralBrush}"
+                             VerticalAlignment="Center"
+                             Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1"
+                               x:Name="StatusText"
+                               Text="Initializing..."
+                               VerticalAlignment="Center"
+                               Style="{StaticResource BodyTextBlockStyle}"/>
+                </Grid>
+            </Border>
 
-        <!-- Hide Top Bar Toggle -->
-        <ToggleSwitch Grid.Row="1"
-                      x:Name="HideTopBarToggle"
-                      Header="Hide top bar during screen sharing"
-                      OnContent="Enabled"
-                      OffContent="Disabled"
-                      Toggled="OnHideTopBarToggled"/>
+            <!-- Section: Overlay Settings -->
+            <TextBlock Grid.Row="1"
+                       Text="Overlay Settings"
+                       Style="{StaticResource BodyStrongTextBlockStyle}"
+                       Margin="0,8,0,0"/>
 
-        <!-- Hide Bottom Overlay Toggle -->
-        <ToggleSwitch Grid.Row="2"
-                      x:Name="HideBottomOverlayToggle"
-                      Header="Hide minimized call overlay"
-                      OnContent="Enabled"
-                      OffContent="Disabled"
-                      Toggled="OnHideBottomOverlayToggled"/>
+            <!-- Hide Top Bar Toggle -->
+            <ToggleSwitch Grid.Row="2"
+                          x:Name="HideTopBarToggle"
+                          Header="Hide top bar during screen sharing"
+                          OnContent="On"
+                          OffContent="Off"
+                          Toggled="OnHideTopBarToggled"/>
 
-        <!-- Launch at Startup Toggle -->
-        <ToggleSwitch Grid.Row="3"
-                      x:Name="LaunchAtStartupToggle"
-                      Header="Launch at Windows startup"
-                      OnContent="Enabled"
-                      OffContent="Disabled"
-                      Toggled="OnLaunchAtStartupToggled"/>
+            <!-- Hide Bottom Overlay Toggle -->
+            <ToggleSwitch Grid.Row="3"
+                          x:Name="HideBottomOverlayToggle"
+                          Header="Hide minimized call overlay"
+                          OnContent="On"
+                          OffContent="Off"
+                          Toggled="OnHideBottomOverlayToggled"/>
 
-        <!-- Spacer -->
-        <Grid Grid.Row="4"/>
+            <!-- Section: General -->
+            <TextBlock Grid.Row="4"
+                       Text="General"
+                       Style="{StaticResource BodyStrongTextBlockStyle}"
+                       Margin="0,8,0,0"/>
 
-        <!-- Footer -->
-        <StackPanel Grid.Row="5"
-                    Orientation="Horizontal"
-                    Spacing="16">
-            <HyperlinkButton Content="GitHub Repository"
-                             NavigateUri="https://github.com/mroter93/TeamsHider"/>
-            <TextBlock Text="Version 5.0.0"
-                       VerticalAlignment="Center"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-        </StackPanel>
+            <!-- Launch at Startup Toggle -->
+            <ToggleSwitch Grid.Row="5"
+                          x:Name="LaunchAtStartupToggle"
+                          Header="Launch at Windows startup"
+                          OnContent="On"
+                          OffContent="Off"
+                          Toggled="OnLaunchAtStartupToggled"/>
+
+            <!-- Footer -->
+            <StackPanel Grid.Row="6"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Spacing="8"
+                        Margin="0,8,0,0">
+                <HyperlinkButton Content="GitHub"
+                                 NavigateUri="https://github.com/mroter93/TeamsHider"
+                                 FontSize="12"/>
+                <TextBlock Text="·"
+                           VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="v5.0"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

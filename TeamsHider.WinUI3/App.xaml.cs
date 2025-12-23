@@ -20,6 +20,7 @@ public partial class App : Application
     private WindowMonitorService? _monitorService;
     private TrayManager? _trayManager;
     private SettingsWindow? _settingsWindow;
+    private HiddenWindow? _hiddenWindow;
     private DispatcherQueue? _dispatcherQueue;
 
     public App()
@@ -73,6 +74,10 @@ public partial class App : Application
             _monitorService.Start();
             DebugLog.Log("App", "WindowMonitorService started");
 
+            // Create hidden window to keep WinUI 3 app alive
+            DebugLog.Log("App", "Creating hidden window...");
+            _hiddenWindow = new HiddenWindow();
+
             // Initialize tray icon
             DebugLog.Log("App", "Initializing TrayManager...");
             _trayManager = new TrayManager(_settingsService, ShowSettingsWindow, QuitApplication);
@@ -101,6 +106,12 @@ public partial class App : Application
                 };
             }
 
+            // Update with current status
+            if (_monitorService != null)
+            {
+                _settingsWindow.UpdateStatus(_monitorService.CurrentStatus);
+            }
+
             DebugLog.Log("App", "Activating SettingsWindow");
             _settingsWindow.Activate();
         }
@@ -122,6 +133,7 @@ public partial class App : Application
         _dispatcherQueue?.TryEnqueue(() =>
         {
             _trayManager?.UpdateStatus(status);
+            _settingsWindow?.UpdateStatus(status);
         });
     }
 
@@ -135,6 +147,7 @@ public partial class App : Application
         }
         _trayManager?.Dispose();
         _settingsWindow?.Close();
+        _hiddenWindow?.Close();
         _mutex?.ReleaseMutex();
         _mutex?.Dispose();
         DebugLog.Log("App", "Exiting...");

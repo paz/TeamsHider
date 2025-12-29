@@ -160,8 +160,8 @@ public sealed partial class SettingsWindow : Window
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
 
         // Remove window border completely (fixes white edge issue)
-        uint noBorder = DWMWA_COLOR_NONE;
-        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref noBorder, sizeof(uint));
+        int noBorder = unchecked((int)DWMWA_COLOR_NONE);
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref noBorder, sizeof(int));
 
         // Hide from taskbar - this is a tray app, flyout should not appear in taskbar
         int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);

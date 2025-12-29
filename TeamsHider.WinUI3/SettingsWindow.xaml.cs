@@ -62,7 +62,9 @@ public sealed partial class SettingsWindow : Window
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
+    private const int GWL_STYLE = -16;
     private const int GWL_EXSTYLE = -20;
+    private const int WS_DLGFRAME = 0x00400000;  // Dialog frame that causes white border
     private const int WS_EX_TOOLWINDOW = 0x00000080;
     private const int WS_EX_APPWINDOW = 0x00040000;
 
@@ -74,6 +76,7 @@ public sealed partial class SettingsWindow : Window
     private const uint MONITOR_DEFAULTTONEAREST = 2;
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     private const int DWMWCP_ROUND = 2;
+    private const int DWMWCP_DONOTROUND = 1;
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private const int DWMWA_BORDER_COLOR = 34;
     private const uint DWMWA_COLOR_NONE = 0xFFFFFFFE;
@@ -119,8 +122,41 @@ public sealed partial class SettingsWindow : Window
     {
         var hwnd = WindowNative.GetWindowHandle(this);
 
+        // Configure title bar FIRST - ExtendsContentIntoTitleBar = true suppresses the border
+        // This is a workaround for Windows App SDK 1.6+ border regression (issue #9978)
+        if (AppWindowTitleBar.IsCustomizationSupported())
+        {
+            var titleBar = AppWindow.TitleBar;
+            titleBar.ExtendsContentIntoTitleBar = true;
+            titleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+
+            // Make title bar buttons transparent so they don't show
+            titleBar.ButtonBackgroundColor = Colors.Transparent;
+            titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        }
+
+        // Configure presenter - use SetBorderAndTitleBar(true, false) with ExtendsContentIntoTitleBar
+        // This combination suppresses the white border in SDK 1.6+
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsResizable = false;
+            presenter.IsMaximizable = false;
+            presenter.IsMinimizable = false;
+            presenter.SetBorderAndTitleBar(true, false);  // border=true with ExtendsContentIntoTitleBar hides it
+        }
+
+        // Remove WS_DLGFRAME to eliminate dialog frame border (SDK 1.6+ regression workaround)
+        int style = GetWindowLong(hwnd, GWL_STYLE);
+        style &= ~WS_DLGFRAME;
+        SetWindowLong(hwnd, GWL_STYLE, style);
+
+        // Hide from taskbar - this is a tray app, flyout should not appear in taskbar
+        int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+        exStyle |= WS_EX_TOOLWINDOW;  // Add tool window style (hides from taskbar)
+        exStyle &= ~WS_EX_APPWINDOW;  // Remove app window style
+        SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
+
         // Apply acrylic/mica backdrop for transparency
-        // DesktopAcrylicBackdrop provides the translucent blur effect
         if (DesktopAcrylicController.IsSupported())
         {
             SystemBackdrop = new DesktopAcrylicBackdrop();
@@ -139,44 +175,18 @@ public sealed partial class SettingsWindow : Window
         int height = (int)(300 * scale);
         AppWindow.Resize(new SizeInt32(width, height));
 
-        // Configure title bar - extend content into it and collapse
-        if (AppWindowTitleBar.IsCustomizationSupported())
-        {
-            var titleBar = AppWindow.TitleBar;
-            titleBar.ExtendsContentIntoTitleBar = true;
-            titleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+        // Use immersive dark mode - this helps prevent white border in dark theme
+        int darkMode = 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
 
-            // Make title bar buttons transparent so they don't show
-            titleBar.ButtonBackgroundColor = Colors.Transparent;
-            titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-        }
+        // Set border color to match background (#2B2B2B = RGB 43,43,43)
+        // COLORREF format is 0x00BBGGRR
+        int borderColor = 0x002B2B2B;
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref borderColor, sizeof(int));
 
         // Set rounded corners (Windows 11 style)
         int cornerPreference = DWMWCP_ROUND;
         DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
-
-        // Use immersive dark mode
-        int darkMode = 1;
-        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
-
-        // Remove window border completely (fixes white edge issue)
-        int noBorder = unchecked((int)DWMWA_COLOR_NONE);
-        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref noBorder, sizeof(int));
-
-        // Hide from taskbar - this is a tray app, flyout should not appear in taskbar
-        int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-        exStyle |= WS_EX_TOOLWINDOW;  // Add tool window style (hides from taskbar)
-        exStyle &= ~WS_EX_APPWINDOW;  // Remove app window style
-        SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
-
-        // Configure presenter for borderless popup-like window
-        if (AppWindow.Presenter is OverlappedPresenter presenter)
-        {
-            presenter.IsResizable = false;
-            presenter.IsMaximizable = false;
-            presenter.IsMinimizable = false;
-            presenter.SetBorderAndTitleBar(false, false);
-        }
 
         // Set window as topmost so it appears above other windows
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);

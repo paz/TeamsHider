@@ -11,6 +11,7 @@
         <AssemblyName>TeamsHider</AssemblyName>
         <RootNamespace>TeamsHider</RootNamespace>
         <LangVersion>latest</LangVersion>
+        <Version>5.0.0</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

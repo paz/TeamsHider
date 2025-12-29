@@ -1,0 +1,227 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 5.1.0) - must match csproj Version'
+        required: true
+        type: string
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for changelog
+
+    - name: Validate version
+      id: validate
+      shell: pwsh
+      run: |
+        $inputVersion = "${{ inputs.version }}"
+
+        # Normalize version (remove leading 'v' if present)
+        $version = $inputVersion -replace '^v', ''
+
+        # Validate format
+        if ($version -notmatch '^\d+\.\d+\.\d+$') {
+          Write-Error "Invalid version format: $version. Expected: X.Y.Z"
+          exit 1
+        }
+
+        # Check WinUI3 csproj
+        $winui3Csproj = Get-Content "TeamsHider.WinUI3/TeamsHider.WinUI3.csproj" -Raw
+        if ($winui3Csproj -notmatch "<Version>$version</Version>") {
+          Write-Error "Version mismatch! TeamsHider.WinUI3.csproj does not contain version $version"
+          Write-Error "Please update the csproj files first, then run this workflow."
+          exit 1
+        }
+
+        # Check Legacy csproj
+        $legacyCsproj = Get-Content "TeamsHider/TeamsHider.csproj" -Raw
+        if ($legacyCsproj -notmatch "<Version>$version</Version>") {
+          Write-Error "Version mismatch! TeamsHider.csproj does not contain version $version"
+          Write-Error "Please update the csproj files first, then run this workflow."
+          exit 1
+        }
+
+        Write-Host "Version validated: $version"
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+
+    - name: Check tag doesn't exist
+      shell: pwsh
+      run: |
+        $version = "${{ steps.validate.outputs.version }}"
+        $tag = "v$version"
+
+        $existingTag = git tag -l $tag
+        if ($existingTag) {
+          Write-Error "Tag $tag already exists! Cannot create duplicate release."
+          exit 1
+        }
+
+        Write-Host "Tag $tag is available"
+
+  build:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    # Install Windows App SDK workload for WinUI3
+    - name: Install Windows App SDK build tools
+      run: |
+        $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+        & $vsInstaller modify `
+          --installPath "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" `
+          --add Microsoft.VisualStudio.Component.Windows11SDK.26100 `
+          --add Microsoft.VisualStudio.ComponentGroup.UWP.Support `
+          --quiet --norestart --wait
+      shell: pwsh
+      continue-on-error: true
+
+    - name: Restore WinUI3 dependencies
+      run: dotnet restore TeamsHider.WinUI3/TeamsHider.WinUI3.csproj
+
+    - name: Build Legacy
+      run: |
+        dotnet publish TeamsHider/TeamsHider.csproj `
+          --configuration Release `
+          --self-contained true `
+          -r win-x64 `
+          -o ./publish-legacy
+
+    - name: Build WinUI 3
+      run: |
+        msbuild TeamsHider.WinUI3/TeamsHider.WinUI3.csproj `
+          /p:Configuration=Release `
+          /p:Platform=x64 `
+          /p:RuntimeIdentifier=win-x64 `
+          /p:SelfContained=true `
+          /p:PublishDir=..\publish-winui3\ `
+          /t:Publish `
+          /m
+
+    - name: Run tests
+      run: dotnet test TeamsHider.Tests/TeamsHider.Tests.csproj --configuration Release
+
+    - name: Create Release ZIPs
+      shell: pwsh
+      run: |
+        $version = "${{ needs.validate.outputs.version }}"
+
+        # Create release directory
+        New-Item -ItemType Directory -Path "release" -Force
+
+        # Package WinUI3 (modern edition)
+        Compress-Archive -Path "publish-winui3/*" -DestinationPath "release/TeamsHider-v$version-WinUI3.zip"
+
+        # Package Legacy (WinForms edition)
+        Compress-Archive -Path "publish-legacy/*" -DestinationPath "release/TeamsHider-v$version-Legacy.zip"
+
+        # Generate checksums
+        $checksums = @()
+        Get-ChildItem "release/*.zip" | ForEach-Object {
+          $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+          $checksums += "$hash  $($_.Name)"
+        }
+        $checksums | Out-File "release/checksums-sha256.txt" -Encoding utf8
+
+        Write-Host "Created release packages:"
+        Get-ChildItem "release/"
+
+    - name: Generate changelog
+      shell: pwsh
+      run: |
+        # Get last tag
+        $lastTag = git describe --tags --abbrev=0 2>$null
+
+        if ($lastTag) {
+          Write-Host "Generating changelog since $lastTag"
+          $commits = git log --oneline --no-decorate "$lastTag..HEAD"
+        } else {
+          Write-Host "No previous tag found, including all commits"
+          $commits = git log --oneline --no-decorate -20
+        }
+
+        # Format changelog
+        $changelog = $commits | ForEach-Object { "- $_" }
+        $changelogText = $changelog -join "`n"
+
+        # Save to file for release notes
+        $changelogText | Out-File "release/changelog.txt" -Encoding utf8
+
+        Write-Host "Changelog:"
+        Write-Host $changelogText
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-${{ needs.validate.outputs.version }}
+        path: release/
+        retention-days: 7
+
+  release:
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Download release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-${{ needs.validate.outputs.version }}
+        path: release/
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.validate.outputs.version }}
+        name: TeamsHider v${{ needs.validate.outputs.version }}
+        body: |
+          ## What's New
+
+          See `changelog.txt` in release assets for full list of changes.
+
+          ## Downloads
+
+          | File | Description |
+          |------|-------------|
+          | `TeamsHider-v${{ needs.validate.outputs.version }}-WinUI3.zip` | **Recommended** - Modern WinUI 3 edition with Fluent Design |
+          | `TeamsHider-v${{ needs.validate.outputs.version }}-Legacy.zip` | Legacy WinForms edition (smaller, simpler) |
+
+          Both editions are self-contained and include the .NET runtime - no installation required.
+
+          ## Verification
+
+          SHA256 checksums are provided in `checksums-sha256.txt`.
+
+          ## Installation
+
+          1. Download the ZIP for your preferred edition
+          2. Extract to any folder
+          3. Run `TeamsHider.exe`
+          4. The app runs in the system tray - look for the icon near the clock
+        files: |
+          release/TeamsHider-v${{ needs.validate.outputs.version }}-WinUI3.zip
+          release/TeamsHider-v${{ needs.validate.outputs.version }}-Legacy.zip
+          release/checksums-sha256.txt
+          release/changelog.txt
+        draft: false
+        prerelease: false

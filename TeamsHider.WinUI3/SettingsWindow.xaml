@@ -57,30 +57,37 @@
                 </StackPanel>
             </Border>
 
-            <!-- Footer: GitHub + Version -->
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Center"
-                        Spacing="6">
-                <HyperlinkButton Content="GitHub"
-                                 NavigateUri="https://github.com/mroter93/TeamsHider"
-                                 FontSize="11"
-                                 Padding="2"/>
-                <TextBlock Text="·"
-                           VerticalAlignment="Center"
-                           Opacity="0.6"
-                           FontSize="11"/>
-                <TextBlock x:Name="VersionText"
-                           Text="v5.0"
-                           VerticalAlignment="Center"
-                           FontSize="11"
-                           Opacity="0.6"/>
-            </StackPanel>
-
-            <!-- Exit Button -->
-            <Button x:Name="ExitButton"
-                    Content="Exit"
-                    HorizontalAlignment="Stretch"
-                    Click="OnExitClicked"/>
+            <!-- Footer: GitHub, Version, Exit -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="4">
+                    <HyperlinkButton Content="GitHub"
+                                     NavigateUri="https://github.com/mroter93/TeamsHider"
+                                     FontSize="11"
+                                     Padding="2,0"/>
+                    <TextBlock Text="·"
+                               VerticalAlignment="Center"
+                               Opacity="0.6"
+                               FontSize="11"/>
+                    <TextBlock x:Name="VersionText"
+                               Text="v5.0"
+                               VerticalAlignment="Center"
+                               FontSize="11"
+                               Opacity="0.6"/>
+                </StackPanel>
+                <Button Grid.Column="1"
+                        x:Name="ExitButton"
+                        Content="Exit"
+                        FontSize="11"
+                        Padding="12,4"
+                        Click="OnExitClicked"/>
+            </Grid>
 
         </StackPanel>
     </Grid>

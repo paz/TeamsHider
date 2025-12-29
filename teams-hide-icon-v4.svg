@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Background rounded square (clearer at small sizes) -->
+  <rect x="4" y="4" width="56" height="56" rx="12" fill="#464775"/>
+  
+  <!-- Bold T -->
+  <text x="32" y="46" font-family="Arial Black, sans-serif" font-size="40" font-weight="900" fill="white" text-anchor="middle">T</text>
+  
+  <!-- Simple prohibition slash -->
+  <line x1="10" y1="54" x2="54" y2="10" stroke="#ff4444" stroke-width="7" stroke-linecap="round"/>
+</svg>

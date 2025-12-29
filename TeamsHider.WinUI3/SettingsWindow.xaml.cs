@@ -56,6 +56,16 @@ public sealed partial class SettingsWindow : Window
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int WS_EX_APPWINDOW = 0x00040000;
+
     private static readonly IntPtr HWND_TOPMOST = new(-1);
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOSIZE = 0x0001;
@@ -146,6 +156,12 @@ public sealed partial class SettingsWindow : Window
         // Use immersive dark mode to eliminate white window edges
         int darkMode = 1;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+
+        // Hide from taskbar - this is a tray app, flyout should not appear in taskbar
+        int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+        exStyle |= WS_EX_TOOLWINDOW;  // Add tool window style (hides from taskbar)
+        exStyle &= ~WS_EX_APPWINDOW;  // Remove app window style
+        SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
 
         // Configure presenter for borderless popup-like window
         if (AppWindow.Presenter is OverlappedPresenter presenter)

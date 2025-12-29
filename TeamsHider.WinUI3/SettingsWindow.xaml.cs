@@ -136,7 +136,7 @@ public sealed partial class SettingsWindow : Window
 
         // Size window to fit content - compact flyout dimensions
         int width = (int)(240 * scale);
-        int height = (int)(370 * scale);
+        int height = (int)(340 * scale);
         AppWindow.Resize(new SizeInt32(width, height));
 
         // Configure title bar - extend content into it and collapse
@@ -259,7 +259,7 @@ public sealed partial class SettingsWindow : Window
 
         // Compact flyout dimensions - matches ConfigureAsFlyout
         int width = (int)(240 * scale);
-        int height = (int)(370 * scale);
+        int height = (int)(340 * scale);
 
         var currentSize = AppWindow.Size;
         if (currentSize.Width != width || currentSize.Height != height)

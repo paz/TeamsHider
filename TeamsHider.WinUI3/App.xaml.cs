@@ -1,5 +1,6 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using TeamsHider.Helpers;
 using TeamsHider.Models;
 using TeamsHider.Services;
 
@@ -9,6 +10,7 @@ namespace TeamsHider;
 /// Application entry point.
 /// Manages single instance, services, and lifecycle.
 /// Run with --debug flag to enable console logging.
+/// Run with --generate-icon to regenerate the app icon.
 /// </summary>
 public partial class App : Application
 {
@@ -25,12 +27,29 @@ public partial class App : Application
 
     public App()
     {
+        // Check for icon generation command
+        var cmdArgs = Environment.GetCommandLineArgs();
+        if (cmdArgs.Contains("--generate-icon"))
+        {
+            GenerateAppIcon();
+            Environment.Exit(0);
+            return;
+        }
+
         // Initialize debug mode from command line args
-        DebugLog.Initialize(Environment.GetCommandLineArgs());
+        DebugLog.Initialize(cmdArgs);
         DebugLog.Log("App", "Constructor called");
 
         InitializeComponent();
         DebugLog.Log("App", "InitializeComponent completed");
+    }
+
+    private static void GenerateAppIcon()
+    {
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "invisible.ico");
+        Console.WriteLine($"Generating icon at: {iconPath}");
+        IconGenerator.SaveIconToFile(iconPath);
+        Console.WriteLine("Icon generated successfully!");
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

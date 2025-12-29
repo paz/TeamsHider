@@ -6,13 +6,12 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-class TrayApplicationContext : Form
+class TrayApplicationContext : ApplicationContext
 {
     private NotifyIcon notifyIcon;
-    
+
     public TrayApplicationContext()
     {
-        base.InitLayout();
         notifyIcon = new NotifyIcon
         {
             Icon = new Icon("invisible.ico"),

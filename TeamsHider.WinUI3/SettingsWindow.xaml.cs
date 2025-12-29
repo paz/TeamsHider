@@ -75,6 +75,8 @@ public sealed partial class SettingsWindow : Window
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     private const int DWMWCP_ROUND = 2;
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    private const int DWMWA_BORDER_COLOR = 34;
+    private const uint DWMWA_COLOR_NONE = 0xFFFFFFFE;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X, Y; }
@@ -134,7 +136,7 @@ public sealed partial class SettingsWindow : Window
 
         // Size window to fit content - compact flyout dimensions
         int width = (int)(240 * scale);
-        int height = (int)(310 * scale);
+        int height = (int)(340 * scale);
         AppWindow.Resize(new SizeInt32(width, height));
 
         // Configure title bar - extend content into it and collapse
@@ -153,9 +155,13 @@ public sealed partial class SettingsWindow : Window
         int cornerPreference = DWMWCP_ROUND;
         DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
 
-        // Use immersive dark mode to eliminate white window edges
+        // Use immersive dark mode
         int darkMode = 1;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+
+        // Remove window border completely (fixes white edge issue)
+        uint noBorder = DWMWA_COLOR_NONE;
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref noBorder, sizeof(uint));
 
         // Hide from taskbar - this is a tray app, flyout should not appear in taskbar
         int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
@@ -253,7 +259,7 @@ public sealed partial class SettingsWindow : Window
 
         // Compact flyout dimensions - matches ConfigureAsFlyout
         int width = (int)(240 * scale);
-        int height = (int)(310 * scale);
+        int height = (int)(340 * scale);
 
         var currentSize = AppWindow.Size;
         if (currentSize.Width != width || currentSize.Height != height)

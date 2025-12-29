@@ -1,6 +1,5 @@
 using H.NotifyIcon;
 using Microsoft.UI.Xaml;
-using TeamsHider.Helpers;
 using TeamsHider.Models;
 using TeamsHider.Services;
 
@@ -61,55 +60,31 @@ public class TrayManager : IDisposable
     {
         DebugLog.Log("TrayManager", "LoadIcon called");
 
-        // Generate a theme-aware icon
-        try
-        {
-            bool isDarkTheme = IconGenerator.IsSystemDarkTheme();
-            DebugLog.Log("TrayManager", $"System theme: {(isDarkTheme ? "Dark" : "Light")}");
-
-            var icon = IconGenerator.GenerateIcon(isDarkTheme);
-            _trayIcon.Icon = icon;
-            DebugLog.Log("TrayManager", "Generated theme-aware icon assigned");
-            return;
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Log("TrayManager", $"Failed to generate icon: {ex.Message}, falling back to file");
-        }
-
-        // Fallback: Try to load from file
-        System.Drawing.Icon? fileIcon = null;
-
+        // Load icon from file (new icon works for both light and dark themes)
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "invisible.ico");
         if (File.Exists(iconPath))
         {
-            fileIcon = new System.Drawing.Icon(iconPath);
+            _trayIcon.Icon = new System.Drawing.Icon(iconPath);
             DebugLog.Log("TrayManager", "Icon loaded from Assets folder");
-        }
-        else
-        {
-            string altPath = Path.Combine(AppContext.BaseDirectory, "invisible.ico");
-            if (File.Exists(altPath))
-            {
-                fileIcon = new System.Drawing.Icon(altPath);
-                DebugLog.Log("TrayManager", "Icon loaded from exe directory");
-            }
-            else
-            {
-                var assembly = typeof(TrayManager).Assembly;
-                using var stream = assembly.GetManifestResourceStream("TeamsHider.invisible.ico");
-                if (stream != null)
-                {
-                    fileIcon = new System.Drawing.Icon(stream);
-                    DebugLog.Log("TrayManager", "Icon loaded from embedded resource");
-                }
-            }
+            return;
         }
 
-        if (fileIcon != null)
+        // Fallback: try exe directory
+        string altPath = Path.Combine(AppContext.BaseDirectory, "invisible.ico");
+        if (File.Exists(altPath))
         {
-            _trayIcon.Icon = fileIcon;
-            DebugLog.Log("TrayManager", "File icon assigned to TaskbarIcon");
+            _trayIcon.Icon = new System.Drawing.Icon(altPath);
+            DebugLog.Log("TrayManager", "Icon loaded from exe directory");
+            return;
+        }
+
+        // Fallback: embedded resource
+        var assembly = typeof(TrayManager).Assembly;
+        using var stream = assembly.GetManifestResourceStream("TeamsHider.invisible.ico");
+        if (stream != null)
+        {
+            _trayIcon.Icon = new System.Drawing.Icon(stream);
+            DebugLog.Log("TrayManager", "Icon loaded from embedded resource");
         }
     }
 

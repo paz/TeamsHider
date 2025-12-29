@@ -14,7 +14,7 @@ class TrayApplicationContext : ApplicationContext
     {
         notifyIcon = new NotifyIcon
         {
-            Icon = new Icon("invisible.ico"),
+            Icon = LoadIcon(),
             Visible = true,
         };
         notifyIcon.ContextMenuStrip = new ContextMenuStrip();
@@ -25,6 +25,25 @@ class TrayApplicationContext : ApplicationContext
         {
             notifyIcon.ContextMenuStrip.Show();
         };
+    }
+
+    private static Icon LoadIcon()
+    {
+        // Use application base directory for icon path (handles different working directories)
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "invisible.ico");
+        if (File.Exists(iconPath))
+        {
+            return new Icon(iconPath);
+        }
+
+        // Fallback: try current directory
+        if (File.Exists("invisible.ico"))
+        {
+            return new Icon("invisible.ico");
+        }
+
+        // Last resort: use system default icon
+        return SystemIcons.Application;
     }
 
     private void OnAboutClicked(object? sender, EventArgs e)

@@ -128,13 +128,13 @@ public sealed partial class SettingsWindow : Window
             SystemBackdrop = new MicaBackdrop();
         }
 
-        // Get DPI for proper sizing
+        // Get DPI for proper sizing (AppWindow uses physical pixels)
         int dpi = GetDpiForWindow(hwnd);
         double scale = dpi / 96.0;
 
-        // Size window to fit content
-        int width = (int)(300 * scale);
-        int height = (int)(380 * scale);
+        // Size window to fit content - compact flyout dimensions
+        int width = (int)(240 * scale);
+        int height = (int)(310 * scale);
         AppWindow.Resize(new SizeInt32(width, height));
 
         // Configure title bar - extend content into it and collapse
@@ -251,8 +251,9 @@ public sealed partial class SettingsWindow : Window
         int dpi = GetDpiForWindow(hwnd);
         double scale = dpi / 96.0;
 
-        int width = (int)(300 * scale);
-        int height = (int)(380 * scale);
+        // Compact flyout dimensions - matches ConfigureAsFlyout
+        int width = (int)(240 * scale);
+        int height = (int)(310 * scale);
 
         var currentSize = AppWindow.Size;
         if (currentSize.Width != width || currentSize.Height != height)

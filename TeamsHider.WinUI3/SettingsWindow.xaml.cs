@@ -24,6 +24,7 @@ public sealed partial class SettingsWindow : Window
     private readonly Action? _onExitRequested;
     private bool _isInitializing = true;
     private bool _isClosing = false;
+    private DispatcherTimer? _focusCheckTimer;
 
     // Colors for status indicator
     private static readonly SolidColorBrush GreenBrush = new(Colors.LimeGreen);
@@ -48,6 +49,12 @@ public sealed partial class SettingsWindow : Window
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
 
     private static readonly IntPtr HWND_TOPMOST = new(-1);
     private const uint SWP_NOMOVE = 0x0002;
@@ -136,6 +143,10 @@ public sealed partial class SettingsWindow : Window
         int cornerPreference = DWMWCP_ROUND;
         DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
 
+        // Use immersive dark mode to eliminate white window edges
+        int darkMode = 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+
         // Configure presenter for borderless popup-like window
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
@@ -155,6 +166,10 @@ public sealed partial class SettingsWindow : Window
     public void ShowAtCursor()
     {
         _isClosing = false;
+
+        // Recalculate size for current DPI (handles display changes)
+        ResizeForCurrentDpi();
+
         PositionAtCursor();
         LoadSettings(); // Refresh settings
 
@@ -162,7 +177,72 @@ public sealed partial class SettingsWindow : Window
         var hwnd = WindowNative.GetWindowHandle(this);
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
+        // Show then activate - required for proper focus/deactivation handling
+        AppWindow.Show();
         Activate();
+
+        // Set foreground to ensure proper activation state tracking
+        SetForegroundWindow(hwnd);
+
+        // Start focus check timer (backup for deactivation detection)
+        StartFocusCheckTimer();
+    }
+
+    private void StartFocusCheckTimer()
+    {
+        StopFocusCheckTimer();
+
+        _focusCheckTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(100)
+        };
+        _focusCheckTimer.Tick += OnFocusCheckTick;
+        _focusCheckTimer.Start();
+    }
+
+    private void StopFocusCheckTimer()
+    {
+        if (_focusCheckTimer != null)
+        {
+            _focusCheckTimer.Stop();
+            _focusCheckTimer.Tick -= OnFocusCheckTick;
+            _focusCheckTimer = null;
+        }
+    }
+
+    private void OnFocusCheckTick(object? sender, object e)
+    {
+        if (_isClosing) return;
+
+        var hwnd = WindowNative.GetWindowHandle(this);
+        var foreground = GetForegroundWindow();
+
+        // If our window is no longer the foreground window, hide it
+        if (foreground != hwnd)
+        {
+            StopFocusCheckTimer();
+            AppWindow.Hide();
+        }
+    }
+
+    /// <summary>
+    /// Resizes the window based on current display DPI.
+    /// Called before showing to handle display changes (undocking, resolution, DPI, sleep/wake).
+    /// </summary>
+    private void ResizeForCurrentDpi()
+    {
+        var hwnd = WindowNative.GetWindowHandle(this);
+        int dpi = GetDpiForWindow(hwnd);
+        double scale = dpi / 96.0;
+
+        int width = (int)(300 * scale);
+        int height = (int)(380 * scale);
+
+        var currentSize = AppWindow.Size;
+        if (currentSize.Width != width || currentSize.Height != height)
+        {
+            AppWindow.Resize(new SizeInt32(width, height));
+        }
     }
 
     private void PositionAtCursor()
@@ -248,7 +328,8 @@ public sealed partial class SettingsWindow : Window
     {
         if (args.WindowActivationState == WindowActivationState.Deactivated && !_isClosing)
         {
-            // Hide instead of close for faster re-show
+            // Stop focus timer and hide window
+            StopFocusCheckTimer();
             AppWindow.Hide();
         }
     }

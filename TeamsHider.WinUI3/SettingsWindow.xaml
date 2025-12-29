@@ -6,7 +6,7 @@
     Title="TeamsHider">
 
     <!-- Transparent background lets acrylic backdrop show through -->
-    <Grid Padding="16">
+    <Grid Padding="16" Background="Transparent">
         <StackPanel Spacing="12">
 
             <!-- Status Card - Fluent card styling -->
